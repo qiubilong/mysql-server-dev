@@ -27,7 +27,7 @@ IF(NOT BISON_EXECUTABLE)
   MESSAGE(WARNING "Bison executable not found in PATH")
 ELSEIF(BISON_EXECUTABLE AND NOT BISON_USABLE)
   # Check version as well
-  EXEC_PROGRAM(${BISON_EXECUTABLE} ARGS --version OUTPUT_VARIABLE BISON_VERSION_STR)
+  EXECUTE_PROCESS(COMMAND ${BISON_EXECUTABLE} --version OUTPUT_VARIABLE BISON_VERSION_STR)
    # Get first line in case it's multiline
    STRING(REGEX REPLACE "([^\n]+).*" "\\1" FIRST_LINE "${BISON_VERSION_STR}")
    # get version information
