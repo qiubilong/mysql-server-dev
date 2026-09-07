@@ -2093,10 +2093,10 @@ lock_rec_lock(
 	ulint			mode,	/*!< in: lock mode: LOCK_X or
 					LOCK_S possibly ORed to either
 					LOCK_GAP or LOCK_REC_NOT_GAP */
-	const buf_block_t*	block,	/*!< in: buffer block containing
+	const buf_block_t*	block,	/*!< in: buffer block containing      //## 页
 					the record */
-	ulint			heap_no,/*!< in: heap number of record */
-	dict_index_t*		index,	/*!< in: index of record */
+	ulint			heap_no,/*!< in: heap number of record */        // ## 记录行
+	dict_index_t*		index,	/*!< in: index of record */          // ## 使用索引
 	que_thr_t*		thr)	/*!< in: query thread */
 {
 	ut_ad(lock_mutex_own());
@@ -2107,8 +2107,8 @@ lock_rec_lock(
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
 	ut_ad((LOCK_MODE_MASK & mode) == LOCK_S
 	      || (LOCK_MODE_MASK & mode) == LOCK_X);
-	ut_ad(mode - (LOCK_MODE_MASK & mode) == LOCK_GAP
-	      || mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP
+	ut_ad(mode - (LOCK_MODE_MASK & mode) == LOCK_GAP   //## 间隙锁
+	      || mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP   //## 普通行锁
 	      || mode - (LOCK_MODE_MASK & mode) == 0);
 	ut_ad(dict_index_is_clust(index) || !dict_index_is_online_ddl(index));
 
@@ -2121,7 +2121,7 @@ lock_rec_lock(
 
         // 比如同一个事务中，对同一page中的不同的两行记录，都加LOCK_REC_NOT_GAP类型的锁，那么此时就能公用一个lock_t对象进行快速加锁成功
         // 前提是，这个page只有一个lock_t对象，如果有多个，则无法快速决定用哪个一个lock_t对象
-	switch (lock_rec_lock_fast(impl, mode, block, heap_no, index, thr)) {
+switch (lock_rec_lock_fast(impl, mode, block, heap_no, index, thr)) {
 	case LOCK_REC_SUCCESS:
 		return(DB_SUCCESS);
 	case LOCK_REC_SUCCESS_CREATED:

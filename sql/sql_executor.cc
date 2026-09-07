@@ -203,7 +203,7 @@ JOIN::exec()
   DBUG_PRINT("info", ("%s", thd->proc_info));
   query_result->send_result_set_metadata(*fields,
                                    Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
-  error= do_select(this);
+  error= do_select(this);   // ## sql 执行入口
   /* Accumulate the counts from all join iterations of all join parts. */
   thd->inc_examined_row_count(examined_rows);
   DBUG_PRINT("counts", ("thd->examined_row_count: %lu",
@@ -880,7 +880,7 @@ Next_select_func JOIN::get_end_select_func()
 */
 
 static int
-do_select(JOIN *join)
+do_select(JOIN *join)       // sql 执行入口
 {
   int rc= 0;
   enum_nested_loop_state error= NESTED_LOOP_OK;

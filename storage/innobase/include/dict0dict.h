@@ -1716,7 +1716,7 @@ extern rw_lock_t*	dict_operation_lock;
 typedef std::map<table_id_t, ib_uint64_t> autoinc_map_t;
 
 /* Dictionary system struct */
-struct dict_sys_t{
+struct dict_sys_t{                                                                 //## 系统字典
 	DictSysMutex	mutex;		/*!< mutex protecting the data
 					dictionary; protects also the
 					disk-based dictionary system tables;
@@ -1730,7 +1730,7 @@ struct dict_sys_t{
 					header and flushed to a file; in
 					recovery this must be derived from
 					the log records */
-	hash_table_t*	table_hash;	/*!< hash table of the tables, based
+	hash_table_t*	table_hash;	/*!< hash table of the tables, based              //## hashmap (  表名 <--> 表   )
 					on name */
 	hash_table_t*	table_id_hash;	/*!< hash table of the tables, based
 					on id */

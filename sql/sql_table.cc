@@ -4838,7 +4838,7 @@ static void sp_prepare_create_field(THD *thd, Create_field *sql_field)
 */
 
 static
-bool create_table_impl(THD *thd,
+bool create_table_impl(THD *thd,                                                                                         // ## 创建表入口 -- 创建用户表
                        const char *db, const char *table_name,
                        const char *error_table_name,
                        const char *path,
@@ -5347,7 +5347,7 @@ bool create_table_impl(THD *thd,
     Create .FRM (and .PAR file for partitioned table).
     If "no_ha_table" is false also create table in storage engine.
   */
-  if (rea_create_table(thd, path, db, table_name,
+  if (rea_create_table(thd, path, db, table_name,                                                                        // ## 创建表入口 -- 创建用户表
                        create_info, alter_info->create_list,
                        *key_count, *key_info, file, no_ha_table))
     goto err;
@@ -5475,7 +5475,7 @@ bool mysql_create_table_no_lock(THD *thd,
     }
   }
 
-  return create_table_impl(thd, db, table_name, table_name, path, create_info,
+  return create_table_impl(thd, db, table_name, table_name, path, create_info,                             // ## 创建表入口 -- 创建用户表
                            alter_info, false, select_field_count, false,
                            is_trans, &not_used_1, &not_used_2);
 }
@@ -5491,7 +5491,7 @@ bool mysql_create_table_no_lock(THD *thd,
   close of thread tables.
 */
 
-bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
+bool mysql_create_table(THD *thd, TABLE_LIST *create_table,                                                              // ## 创建表入口 -- 创建用户表
                         HA_CREATE_INFO *create_info,
                         Alter_info *alter_info)
 {
@@ -5521,7 +5521,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   if (!thd->variables.explicit_defaults_for_timestamp)
     promote_first_timestamp_column(&alter_info->create_list);
 
-  result= mysql_create_table_no_lock(thd, create_table->db,
+  result= mysql_create_table_no_lock(thd, create_table->db,                                                              // ## 创建表入口 -- 创建用户表
                                      create_table->table_name, create_info,
                                      alter_info, 0, &is_trans);
   /*

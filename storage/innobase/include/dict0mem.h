@@ -557,23 +557,23 @@ struct table_name_t
 };
 
 /** Data structure for a column in a table */
-struct dict_col_t{
+struct dict_col_t{                                                                //## 表字段
 	/*----------------------*/
 	/** The following are copied from dtype_t,
 	so that all bit-fields can be packed tightly. */
 	/* @{ */
-	unsigned	prtype:32;	/*!< precise type; MySQL data
+	unsigned	prtype:32;	/*!< precise type; MySQL data                       // 次类型，是否允许空、无符号等
 					type, charset code, flags to
 					indicate nullability,
 					signedness, whether this is a
 					binary string, whether this is
 					a true VARCHAR where MySQL
 					uses 2 bytes to store the length */
-	unsigned	mtype:8;	/*!< main data type */
+	unsigned	mtype:8;	/*!< main data type */                             //## 主类型，如 int、varchar
 
 	/* the remaining fields do not affect alphabetical ordering: */
 
-	unsigned	len:16;		/*!< length; for MySQL data this
+	unsigned	len:16;		/*!< length; for MySQL data this                  // ## 字段数据最大长度 -- 字节数
 					is field->pack_length(),
 					except that for a >= 5.0.3
 					type true VARCHAR this is the
@@ -1327,7 +1327,7 @@ typedef ib_mutex_t AnalyzeIndexMutex;
 
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
-struct dict_table_t {
+struct dict_table_t {                                                                     // ## 表定义
 
 	/** Get reference count.
 	@return current value of n_ref_count */
@@ -1340,7 +1340,7 @@ struct dict_table_t {
 	inline void release();
 
 	/** Id of the table. */
-	table_id_t				id;
+	table_id_t				id;                                                            //## 表id
 
 	/** Memory heap. If you allocate from this heap after the table has
 	been created then be sure to account the allocation into
@@ -1354,7 +1354,7 @@ struct dict_table_t {
 	mem_heap_t*				heap;
 
 	/** Table name. */
-	table_name_t				name;
+	table_name_t				name;                                                         //## 表名字
 
 	/** NULL or the directory path where a TEMPORARY table that was
 	explicitly created by a user should be placed if innodb_file_per_table
@@ -1440,7 +1440,7 @@ struct dict_table_t {
 	unsigned				drop_aborted:1;
 
 	/** Array of column descriptions. */
-	dict_col_t*				cols;
+	dict_col_t*				cols;                                                                                       //## 表字段
 
 	/** Array of virtual column descriptions. */
 	dict_v_col_t*				v_cols;
@@ -1469,7 +1469,7 @@ struct dict_table_t {
 	hash_node_t				id_hash;
 
 	/** The FTS_DOC_ID_INDEX, or NULL if no fulltext indexes exist */
-	dict_index_t*				fts_doc_id_index;
+	dict_index_t*				fts_doc_id_index;                                     //## 表索引
 
 	/** List of indexes of the table. */
 	UT_LIST_BASE_NODE_T(dict_index_t)	indexes;

@@ -5004,7 +5004,7 @@ handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info)
   assert(m_lock_type == F_UNLCK);
   mark_trx_read_write();
 
-  return create(name, form, info);
+  return create(name, form, info);                                                                                       // ## 创建表入口 -- 创建用户表
 }
 
 
@@ -5163,7 +5163,7 @@ int ha_create_table(THD *thd, const char *path,
 
   name= get_canonical_filename(table.file, share.path.str, name_buff);
 
-  error= table.file->ha_create(name, &table, create_info);
+  error= table.file->ha_create(name, &table, create_info);                                                               // ## 创建表入口 -- 创建用户表
   if (error)
   {
     table.file->print_error(error, MYF(0));

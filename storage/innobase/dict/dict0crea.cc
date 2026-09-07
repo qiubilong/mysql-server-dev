@@ -358,7 +358,7 @@ Builds a table definition to insert.
 @return DB_SUCCESS or error code */
 static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
-dict_build_table_def_step(
+dict_build_table_def_step(																								// 执行插入表工作流 -- QUE_NODE_CREATE_TABLE -- 分配表id -- 创建表文件ibd -- 表定义插入系统表
 /*======================*/
 	que_thr_t*	thr,	/*!< in: query thread */
 	tab_node_t*	node)	/*!< in: table create node */
@@ -372,16 +372,16 @@ dict_build_table_def_step(
 	trx_t*	trx = thr_get_trx(thr);
 
         // 给dict_table_t对象分配一个table_id
-	dict_table_assign_new_id(table, trx);
+	dict_table_assign_new_id(table, trx);																				//## 分配一个新的表id -- tableId
 
         // 创建并初始化ibd文件
-	err = dict_build_tablespace_for_table(table);
+	err = dict_build_tablespace_for_table(table);																		// ##  创建表idb文件 + 初始化表空间头页
 	if (err != DB_SUCCESS) {
 		return(err);
 	}
 
         // 复制dict_table_t对象为row对象
-        row = dict_create_sys_tables_tuple(table, node->heap);
+        row = dict_create_sys_tables_tuple(table, node->heap);                                                          // 将表对象插入【系统表】sys_tables
 
         //将row对象中的内容存一份到dict_sys->sys_tables中
 	ins_node_set_new_row(node->tab_def, row);
@@ -462,7 +462,7 @@ dict_build_tablespace(
 @param[in,out]	table	Table to build in its own tablespace.
 @return DB_SUCCESS or error code */
 dberr_t
-dict_build_tablespace_for_table(
+dict_build_tablespace_for_table(																						// 创建表idb文件 + 初始化表空间头页
 	dict_table_t*	table)
 {
 	dberr_t		err	= DB_SUCCESS;
@@ -491,7 +491,7 @@ dict_build_tablespace_for_table(
 		      || dict_table_get_format(table) >= UNIV_FORMAT_B);
 
 		/* Get a new tablespace ID */
-		dict_hdr_get_new_id(NULL, NULL, &space, table, false);
+		dict_hdr_get_new_id(NULL, NULL, &space, table, false);									// 分配表空间id -- spaceId
 
 		DBUG_EXECUTE_IF(
 			"ib_create_table_fail_out_of_space_ids",
@@ -542,7 +542,7 @@ dict_build_tablespace_for_table(
 		the table we create here. */
                 // 创建ibd文件
 		err = fil_ibd_create(
-			space, table->name.m_name, filepath, fsp_flags,
+			space, table->name.m_name, filepath, fsp_flags,                                                         // ##  创建表idb文件 -- 首先初始化4页
 			FIL_IBD_FILE_INITIAL_SIZE);
 
 		ut_free(filepath);
@@ -556,7 +556,7 @@ dict_build_tablespace_for_table(
 		mtr.set_named_space(table->space);
 		dict_disable_redo_if_temporary(table, &mtr);
 
-		bool ret = fsp_header_init(table->space,
+		bool ret = fsp_header_init(table->space,																		// ##  初始化表空间头页
 					   FIL_IBD_FILE_INITIAL_SIZE,
 					   &mtr);
 
@@ -1369,7 +1369,7 @@ dict_truncate_index_tree_in_mem(
 Creates a table create graph.
 @return own: table create node */
 tab_node_t*
-tab_create_graph_create(
+tab_create_graph_create(                                                                                                // 表创建落库工作流
 /*====================*/
 	dict_table_t*	table,	/*!< in: table to create, built as a memory data
 				structure */
@@ -1387,11 +1387,11 @@ tab_create_graph_create(
 	node->state = TABLE_BUILD_TABLE_DEF;
 	node->heap = mem_heap_create(256);
 
-	node->tab_def = ins_node_create(INS_DIRECT, dict_sys->sys_tables,
+	node->tab_def = ins_node_create(INS_DIRECT, dict_sys->sys_tables,                                            // 将表table插入【系统表】sys_tables
 					heap);
 	node->tab_def->common.parent = node;
 
-	node->col_def = ins_node_create(INS_DIRECT, dict_sys->sys_columns,
+	node->col_def = ins_node_create(INS_DIRECT, dict_sys->sys_columns,                                           // 将表table字段插入【系统表】sys_columns
 					heap);
 	node->col_def->common.parent = node;
 
@@ -1447,7 +1447,7 @@ ind_create_graph_create(
 Creates a table. This is a high-level function used in SQL execution graphs.
 @return query thread to run next or NULL */
 que_thr_t*
-dict_create_table_step(
+dict_create_table_step(                                                                                                 // 执行插入表工作流 -- QUE_NODE_CREATE_TABLE-- 分配表id -- 创建表文件ibd -- 表定义插入系统表
 /*===================*/
 	que_thr_t*	thr)	/*!< in: query thread */
 {
@@ -1472,7 +1472,7 @@ dict_create_table_step(
 
 		/* DO THE CHECKS OF THE CONSISTENCY CONSTRAINTS HERE */
 
-		err = dict_build_table_def_step(thr, node);
+		err = dict_build_table_def_step(thr, node);																		// 执行插入表工作流 -- QUE_NODE_CREATE_TABLE-- 分配表id -- 创建表文件ibd -- 表定义插入系统表
 
 		if (err != DB_SUCCESS) {
 
@@ -2672,17 +2672,17 @@ dict_delete_tablespace_and_datafiles(
 @param[in,out]	table	Table that needs an ID
 @param[in,out]	trx	Transaction */
 void
-dict_table_assign_new_id(
+dict_table_assign_new_id(                                                                                               // 分配表id
 	dict_table_t*	table,
 	trx_t*		trx)
 {
-	if (dict_table_is_intrinsic(table)) {
+	if (dict_table_is_intrinsic(table)) { /* 内在表、非系统表 */
 		/* There is no significance of this table->id (if table is
 		intrinsic) so assign it default instead of something meaningful
 		to avoid confusion.*/
 		table->id = ULINT_UNDEFINED;
 	} else {
-		dict_hdr_get_new_id(&table->id, NULL, NULL, table, false);
+		dict_hdr_get_new_id(&table->id, NULL, NULL, table, false);						// 分配表id
 	}
 
 	trx->table_id = table->id;

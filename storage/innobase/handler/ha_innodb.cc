@@ -9966,7 +9966,7 @@ innodb_base_col_setup_for_stored(
 @return ER_* level error */
 inline MY_ATTRIBUTE((warn_unused_result))
 int
-create_table_info_t::                             create_table_def()
+create_table_info_t::                             create_table_def()                                                    // ## 创建表 table
 {
 	dict_table_t*	table;
 	ulint		n_cols;
@@ -9994,7 +9994,7 @@ create_table_info_t::                             create_table_def()
 
 	/* MySQL does the name length check. But we do additional check
 	on the name length here */
-	const size_t	table_name_len = strlen(m_table_name);
+	const size_t	table_name_len = strlen(m_table_name); //表名=库名/表名
 	if (table_name_len > MAX_FULL_NAME_LEN) {
 		push_warning_printf(
 			m_thd, Sql_condition::SL_WARNING,
@@ -10019,7 +10019,7 @@ create_table_info_t::                             create_table_def()
 	for (i = 0; i < n_cols; i++) {
 		Field*	field = m_form->field[i];
 
-		if (innobase_is_v_fld(field)) {
+		if (innobase_is_v_fld(field)) { /* 虚拟字段 */
 			num_v++;
 		}
 	}
@@ -10027,7 +10027,7 @@ create_table_info_t::                             create_table_def()
 	ut_ad(trx_state_eq(m_trx, TRX_STATE_NOT_STARTED));
 
 	/* Check whether there already exists a FTS_DOC_ID column */
-	if (create_table_check_doc_id_col(m_trx, m_form, &doc_id_col)){
+	if (create_table_check_doc_id_col(m_trx, m_form, &doc_id_col)){  /* FTS == 全文索引  */
 
 		/* Raise error if the Doc ID column is of wrong type or name */
 		if (doc_id_col == ULINT_UNDEFINED) {
@@ -10055,7 +10055,7 @@ create_table_info_t::                             create_table_def()
 
         // 创建dict_table_t对象
 	table = dict_mem_table_create(m_table_name, space_id,
-				      actual_n_cols, num_v, m_flags, m_flags2);
+				      actual_n_cols, num_v, m_flags, m_flags2);                                         // ## 创建  内存【表对象】 dict_table_t
 
 	/* Set the hidden doc_id column. */
 	if (m_flags2 & DICT_TF2_FTS) {
@@ -10200,7 +10200,7 @@ err_col:
 		}
 
 		if (!is_virtual) {
-			dict_mem_table_add_col(table, heap,
+			dict_mem_table_add_col(table, heap,                                                                         // 初始化【表字段】
 				field_name, col_type,
 				dtype_form_prtype(
 					(ulint) field->type()
@@ -10402,7 +10402,7 @@ err_col:
 
 		if (err == DB_SUCCESS) {
 
-			err = row_create_table_for_mysql(
+			err = row_create_table_for_mysql(                                                                           // ## 内存表对象落库
 				table, algorithm, m_trx, false);
 		}
 
@@ -11946,7 +11946,7 @@ create_table_info_t::prepare_create_table(
 /** Create a new table to an InnoDB database.
 @return error number */
 int
-create_table_info_t::create_table()
+create_table_info_t::create_table()     // ## 创建表                                                                      // ## 创建表入口 -- 创建用户表 + 创建索引
 {
 	int		error;
 	int		primary_key_no;
@@ -11966,7 +11966,7 @@ create_table_info_t::create_table()
 	the primary key is always number 0, if it exists */
 	ut_a(primary_key_no == -1 || primary_key_no == 0);
         // 会创建ibd文件
-	error = create_table_def();
+	error = create_table_def();                                                     // ## 创建表入口
 	if (error) {
 		DBUG_RETURN(error);
 	}
@@ -12317,7 +12317,7 @@ ha_innobase::create(
 	}
 
         // 这里会创建ibd文件
-	if ((error = info.create_table())) {
+	if ((error = info.create_table())) {																				 // ## 创建表入口 -- 创建用户表
 		goto cleanup;
 	}
 

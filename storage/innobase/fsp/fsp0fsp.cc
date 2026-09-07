@@ -172,7 +172,7 @@ fsp_get_space_header(
 
 	ut_ad(id != 0 || !page_size.is_compressed());
 
-	block = buf_page_get(page_id_t(id, 0), page_size, RW_SX_LATCH, mtr);
+	block = buf_page_get(page_id_t(id, 0), page_size, RW_SX_LATCH, mtr);									//表空间头页 -- 第0页
 	header = FSP_HEADER_OFFSET + buf_block_get_frame(block);
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
@@ -614,7 +614,7 @@ xdes_get_descriptor_with_space_hdr(
 
 	const page_size_t	page_size(flags);
         // 根据指定页号offset，计算出该页所在的区组对应的XDES页的页号
-	descr_page_no = xdes_calc_descriptor_page(page_size, offset);
+	descr_page_no = xdes_calc_descriptor_page(page_size, offset);                                                       //每64页一个区，每256区一个区组，区描述页就在这里第0页
 
 	buf_block_t*		block;
 
@@ -723,7 +723,7 @@ xdes_get_offset(
 Inits a file page whose prior contents should be ignored. */
 static
 void
-fsp_init_file_page_low(
+fsp_init_file_page_low(																									// 表空间头页 -- 写入【页号】、【表空间id】
 /*===================*/
 	buf_block_t*	block)	/*!< in: pointer to a page */
 {
@@ -734,7 +734,7 @@ fsp_init_file_page_low(
 		memset(page, 0, UNIV_PAGE_SIZE);
 	}
 
-	mach_write_to_4(page + FIL_PAGE_OFFSET, block->page.id.page_no());
+	mach_write_to_4(page + FIL_PAGE_OFFSET, block->page.id.page_no());                                              // 表空间头页 -- 写入【页号】、【表空间id】
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
 			block->page.id.space());
 
@@ -1071,7 +1071,7 @@ insert buffer tree root if space == 0.
 @param[in,out]	mtr		min-transaction
 @return	true on success, otherwise false. */
 bool
-fsp_header_init(
+fsp_header_init(																										// ##  初始化表空间头页
 	ulint	space_id,
 	ulint	size,
 	mtr_t*	mtr)
@@ -1084,10 +1084,10 @@ fsp_header_init(
 
 	fil_space_t*		space	= mtr_x_lock_space(space_id, mtr);
 
-	const page_id_t		page_id(space_id, 0);
+	const page_id_t		page_id(space_id, 0);//第0页是【表空间头页】
 	const page_size_t	page_size(space->flags);
 
-	block = buf_page_create(page_id, page_size, mtr);
+	block = buf_page_create(page_id, page_size, mtr);                                                                   // ##  分配一个内存页
 	buf_page_get(page_id, page_size, RW_SX_LATCH, mtr);
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
@@ -1097,18 +1097,18 @@ fsp_header_init(
 
 	/* The prior contents of the file page should be ignored */
 
-	fsp_init_file_page(block, mtr);
+	fsp_init_file_page(block, mtr);																					    // 表空间头页 -- 写入【页号】、【表空间id】
 	page = buf_block_get_frame(block);
 
 	mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_TYPE_FSP_HDR,
 			 MLOG_2BYTES, mtr);
 
-	header = FSP_HEADER_OFFSET + page;
+	header = FSP_HEADER_OFFSET + page;//表空间页 -- 页头偏移
 
 	mlog_write_ulint(header + FSP_SPACE_ID, space_id, MLOG_4BYTES, mtr);
 	mlog_write_ulint(header + FSP_NOT_USED, 0, MLOG_4BYTES, mtr);
 
-	mlog_write_ulint(header + FSP_SIZE, size, MLOG_4BYTES, mtr);
+	mlog_write_ulint(header + FSP_SIZE, size, MLOG_4BYTES, mtr);                                                 //表空间页数 -- 4
 	mlog_write_ulint(header + FSP_FREE_LIMIT, 0, MLOG_4BYTES, mtr);
 	mlog_write_ulint(header + FSP_SPACE_FLAGS, space->flags,
 			 MLOG_4BYTES, mtr);
@@ -1122,7 +1122,7 @@ fsp_header_init(
 
 	mlog_write_ull(header + FSP_SEG_ID, 1, mtr);
 
-	fsp_fill_free_list(!is_system_tablespace(space_id),
+	fsp_fill_free_list(!is_system_tablespace(space_id),																	// 初始化表空间 -- 空闲区链表
 			   space, header, mtr);
 
 	/* For encryption tablespace, we need to save the encryption
@@ -1608,7 +1608,7 @@ then we will not allocate more extents
 @param[in,out]	mtr		mini-transaction */
 static
 void
-fsp_fill_free_list(
+fsp_fill_free_list(																										//表空间头页 -- 【空闲区】链表 -- 分配【空闲区】 -- -创建区描述对象-
 	bool		init_space,
 	fil_space_t*	space,
 	fsp_header_t*	header,
@@ -1626,7 +1626,7 @@ fsp_fill_free_list(
 	ut_d(fsp_space_modify_check(space->id, mtr));
 
 	/* Check if we can fill free list from above the free list limit */
-	size = mach_read_from_4(header + FSP_SIZE);
+	size = mach_read_from_4(header + FSP_SIZE);        //表空间总共【页数】
 	limit = mach_read_from_4(header + FSP_FREE_LIMIT);
 	flags = mach_read_from_4(header + FSP_SPACE_FLAGS);
 
@@ -1649,25 +1649,25 @@ fsp_fill_free_list(
 		}
 	}
 
-        // 表空间初始化时limit一开始为0，之后为64
+        /* 表空间初始化时limit一开始为0，之后为64*/
 	i = limit;
 
-        // 如果是初始化表空间，则直接进去
-        // 如果不是初始化表空间，需要分配区时，会判断当前表空间中有多少页size，如果size>=
+        /* 如果是初始化表空间，则直接进去
+        // 如果不是初始化表空间，需要分配区时，会判断当前表空间中有多少页size，如果size>= */
 	while ((init_space && i < 1)
 	       || ((i + FSP_EXTENT_SIZE <= size) && (count < FSP_FREE_ADD))) {
 
                 // 新增的这个区是不是这一组里的第一个区
 		bool	init_xdes
-			= (ut_2pow_remainder(i, page_size.physical()) == 0);
+			= (ut_2pow_remainder(i, page_size.physical()) == 0); //page_size.physical())==16384 -- 256个区的第一个区
 
                 // 新增一个区就将free_limit增加64，表示新增了64个页
 		space->free_limit = i + FSP_EXTENT_SIZE;
 		mlog_write_ulint(header + FSP_FREE_LIMIT, i + FSP_EXTENT_SIZE,
 				 MLOG_4BYTES, mtr);
 
-                // 如果这个区是区组里的第一个区，则需要初始化一个XDES页，用来存这个区组里面每个区对应的XDES对象
-		if (init_xdes) {
+
+		if (init_xdes) {																								// 如果这个区是区组里的第一个区，则需要初始化一个XDES页，用来存这个区组里面每个区对应的XDES对象
 
 			buf_block_t*	block;
 
@@ -1741,7 +1741,7 @@ fsp_fill_free_list(
 		buf_block_t*	desc_block = NULL;
 
                 // 获取当前要创建的区对应的xdes对象
-		descr = xdes_get_descriptor_with_space_hdr(
+		descr = xdes_get_descriptor_with_space_hdr(                                                                     // 区描述对象 -- 一个区有64页
 			header, space->id, i, mtr, init_space, &desc_block);
 		if (desc_block != NULL) {
 			fil_block_check_type(
@@ -1752,7 +1752,7 @@ fsp_fill_free_list(
 		xdes_init(descr, mtr);
 
                 // 如果当前这个区是组里的第一个区，则表示该区的第0页是XDES页，第1页是IBUF BITMAP页，所以需要修改该区对应的xdes
-		if (UNIV_UNLIKELY(init_xdes)) {
+		if (UNIV_UNLIKELY(init_xdes)) {                                                                                 //每256个区为1组，每组的第0区第0页是descr页
 
 			/* The first page in the extent is a descriptor page
 			and the second is an ibuf bitmap page: mark them
@@ -1774,7 +1774,7 @@ fsp_fill_free_list(
 		} else {
 
                         // 把descr添加到表空间的FSP_FREE链表
-			flst_add_last(header + FSP_FREE,
+			flst_add_last(header + FSP_FREE,                                                                            // 添加区描述对象（64页）加到【表空间头页】的空闲区链表
 				      descr + XDES_FLST_NODE, mtr);
 
                         // 增加了一个区
@@ -1798,7 +1798,7 @@ page offset in the extent goes; the hint must not be > FSP_FREE_LIMIT
 @return extent descriptor, NULL if cannot be allocated */
 static
 xdes_t*
-fsp_alloc_free_extent(
+fsp_alloc_free_extent(																									// 表空间 -- 申请【空闲区】 ----先看‘指定位置’能不能用，能用就用；如果不能用，就老老实实去全局池子里拿一个，如果池子空了，就现造一个放进池子再拿
 	ulint			space_id,
 	const page_size_t&	page_size,
 	ulint			hint,
@@ -1821,11 +1821,11 @@ fsp_alloc_free_extent(
 		fil_block_check_type(desc_block, FIL_PAGE_TYPE_XDES, mtr);
 	}
 
-	if (descr && (xdes_get_state(descr, mtr) == XDES_FREE)) {
+	if (descr && (xdes_get_state(descr, mtr) == XDES_FREE)) {															//区状态 -- 空闲 -- 属于表空间、目前是公共的，所有段都可以申请 <-- 删除空间回收、预分配
 		/* Ok, we can take this extent */
 	} else {
 		/* Take the first extent in the free list */
-		first = flst_get_first(header + FSP_FREE, mtr);
+		first = flst_get_first(header + FSP_FREE, mtr);															// 表空间中没有空闲区，先申请一个【空闲区】插到FSP_FREE链表，再申请
                 // 表空间中没有空闲区了
 		if (fil_addr_is_null(first)) {
                         // 创建一个新区并放到FSP_FREE链表中
@@ -2625,7 +2625,7 @@ Calculates reserved fragment page slots.
 @return number of fragment pages */
 static
 ulint
-fseg_get_n_frag_pages(
+fseg_get_n_frag_pages(                                                                                                  //统计【段】 碎片页 - 一个段最多拥有32个碎片页
 /*==================*/
 	fseg_inode_t*	inode,	/*!< in: segment inode */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
@@ -2635,7 +2635,7 @@ fseg_get_n_frag_pages(
 
 	ut_ad(inode && mtr);
 
-	for (i = 0; i < FSEG_FRAG_ARR_N_SLOTS; i++) {
+	for (i = 0; i < FSEG_FRAG_ARR_N_SLOTS; i++) {//一个段最多拥有32个碎片页
 		if (FIL_NULL != fseg_get_nth_frag_page_no(inode, i, mtr)) {
 			count++;
 		}
@@ -2825,7 +2825,7 @@ currently used.
 @return number of reserved pages */
 static
 ulint
-fseg_n_reserved_pages_low(
+fseg_n_reserved_pages_low(                                                                                              //## 计算当前【段】拥有多少页，使用了多少页
 /*======================*/
 	fseg_inode_t*	inode,	/*!< in: segment inode */
 	ulint*		used,	/*!< out: number of pages used (not
@@ -2841,12 +2841,12 @@ fseg_n_reserved_pages_low(
         // flst_get_len(inode + FSEG_FULL)表示FSEG_FULL链表的长度，也就是有多个区用满了，乘以FSP_EXTENT_SIZE，就表示用了多少页
         // 再加上用到的碎片页
         // 最终得到当前段总共用了多少页，真正存了数据的页
-	*used = mach_read_from_4(inode + FSEG_NOT_FULL_N_USED)
+	*used = mach_read_from_4(inode + FSEG_NOT_FULL_N_USED)															//使用了多少页 -- FSP_EXTENT_SIZE=64
 		+ FSP_EXTENT_SIZE * flst_get_len(inode + FSEG_FULL)
 		+ fseg_get_n_frag_pages(inode, mtr);
 
         // 表示当前段拥有多少页，这些可能满了，也可能没满
-	ret = fseg_get_n_frag_pages(inode, mtr)
+	ret = fseg_get_n_frag_pages(inode, mtr)                                                                             //拥有多少页
 		+ FSP_EXTENT_SIZE * flst_get_len(inode + FSEG_FREE)
 		+ FSP_EXTENT_SIZE * flst_get_len(inode + FSEG_NOT_FULL)
 		+ FSP_EXTENT_SIZE * flst_get_len(inode + FSEG_FULL);
@@ -3033,7 +3033,7 @@ reserved, in this case we will never return NULL
 @retval block	(not allocated or initialized) otherwise */
 static
 buf_block_t*
-fseg_alloc_free_page_low(
+fseg_alloc_free_page_low(																								// ## 段申请一个空闲页 -- 精准命中（段区、表空间区）> 就近取用（同区空闲）> 内部消化（段碎片区、空闲区）  > 外部获取(独立页、新区)
 	fil_space_t*		space,
 	const page_size_t&	page_size,
 	fseg_inode_t*		seg_inode,
@@ -3070,15 +3070,15 @@ fseg_alloc_free_page_low(
 	ut_ad(seg_id);
 	ut_d(fsp_space_modify_check(space_id, mtr));
 	ut_ad(fil_page_get_type(page_align(seg_inode)) == FIL_PAGE_INODE);
-        // used表示当前段用了多少页，reserved表示当前段持有了多少页，reserved-used就表示当前段空闲了多少页
-	reserved = fseg_n_reserved_pages_low(seg_inode, &used, mtr);
-        // 获取表空间头部
+        /* used表示当前段用了多少页，reserved表示当前段持有了多少页，reserved-used就表示当前段空闲了多少页*/
+	reserved = fseg_n_reserved_pages_low(seg_inode, &used, mtr);														//## 计算当前【段】拥有多少页，使用了多少页
+        /* 获取表空间头部 */
 	space_header = fsp_get_space_header(space_id, page_size, mtr);
         // hint表示页，比如现在要分配页号为5的页，那就根据页号5找到对应区的XDES对象，简称为descr
-	descr = xdes_get_descriptor_with_space_hdr(space_header, space_id,
+	descr = xdes_get_descriptor_with_space_hdr(space_header, space_id,													// 加载 区（64页）描述对象 -- 可能是表空间的区，也可能是段的区
 						   hint, mtr);
-	// 当你想要page5时，但是表空间中只有5页时，编号是0-4，那么此时表空间中没有你想要的页，也就是你想要的页根本还不存在，就会返回null
-        // 此时会使用表空间的第一个区对应的descr
+	/* 当你想要page5时，但是表空间中只有5页时，编号是0-4，那么此时表空间中没有你想要的页，也就是你想要的页根本还不存在，就会返回null
+        // 此时会使用表空间的第一个区对应的descr*/
         if (descr == NULL) {
 		/* Hint outside space or too high above free limit: reset
 		hint */
@@ -3093,7 +3093,7 @@ fseg_alloc_free_page_low(
 	if ((xdes_get_state(descr, mtr) == XDES_FSEG)
 	    && mach_read_from_8(descr + XDES_ID) == seg_id
 	    && (xdes_mtr_get_bit(descr, XDES_FREE_BIT,
-				 hint % FSP_EXTENT_SIZE, mtr) == TRUE)) {
+				 hint % FSP_EXTENT_SIZE, mtr) == TRUE)) {															// 1、 精准命中 --区是【当前段】，想要【页】是空闲的，直接返回  --- 预分配或者删除回收
 take_hinted_page:
 		/* 1. We can take the hinted page
 		=================================*/
@@ -3104,17 +3104,17 @@ take_hinted_page:
 		we would have got (descr == NULL) above and reset the hint. */
 		goto got_hinted_page;
 		/*-----------------------------------------------------------*/
-	} else if (xdes_get_state(descr, mtr) == XDES_FREE
+	} else if (xdes_get_state(descr, mtr) == XDES_FREE																	//2、精准命中 --【区】是空闲的，属于表空间，段使用>=32页，将此【区】移除到当前【段】的空闲区链表   --- 预分配或者删除回收
 		   && reserved - used < reserved / FSEG_FILLFACTOR
-		   && used >= FSEG_FRAG_LIMIT) {
-                // 如果找到的区是空闲的，但不属于当前段，并且段内剩余页面小于1/8了，并且段已经使用的页面超过32页了
-                // 表示现在申请的页正好在一个空闲区，并且当前段空闲页面页比较少了，那我们就把找到的空闲区拿过来给这个段用了
+		   && used >= FSEG_FRAG_LIMIT) { //FSEG_FRAG_LIMIT=32
+                /*/ 如果找到的区是空闲的，但不属于当前段，并且段内剩余页面小于1/8了，并且段已经使用的页面超过32页了
+                // 表示现在申请的页正好在一个空闲区，并且当前段空闲页面页比较少了，那我们就把找到的空闲区拿过来给这个段用了*/
 		/* 2. We allocate the free extent from space and can take
 		=========================================================
 		the hinted page
 		===============*/
                 // 再次用hint去找到对应的区，正常来说应该等于descr，这一步会把这个区从表空间的FSP_FREE移除掉
-		ret_descr = fsp_alloc_free_extent(
+		ret_descr = fsp_alloc_free_extent(																				//             表空间 -- 申请【空闲区】 ----先看‘指定位置’能不能用，能用就用；如果不能用，就老老实实去全局池子里拿一个，如果池子空了，就现造一个放进池子再拿
 			space_id, page_size, hint, mtr);
 
 		ut_a(ret_descr == descr);
@@ -3153,7 +3153,7 @@ take_hinted_page:
 		}
 		ut_ad(!has_done_reservation || ret_page != FIL_NULL);
 		/*-----------------------------------------------------------*/
-	} else if ((xdes_get_state(descr, mtr) == XDES_FSEG)
+	} else if ((xdes_get_state(descr, mtr) == XDES_FSEG)																// 4、区是【当前段】，区是碎片区，返回【区】一个空闲页
 		   && mach_read_from_8(descr + XDES_ID) == seg_id
 		   && (!xdes_is_full(descr, mtr))) {
                 // 当前区正好属于当前段，但是区里面还有空闲空间
@@ -3170,7 +3170,7 @@ take_hinted_page:
 					hint % FSP_EXTENT_SIZE, mtr);
 		ut_ad(!has_done_reservation || ret_page != FIL_NULL);
 		/*-----------------------------------------------------------*/
-	} else if (reserved - used > 0) {
+	} else if (reserved - used > 0) {                                                                                   // 5、当前【段】还有空闲页未用完，【段】区链表中返回一个【空闲页】 -- 碎片区 > 空闲区
 		/* 5. We take any unused page from the segment
 		==============================================*/
 		fil_addr_t	first;
@@ -3194,7 +3194,7 @@ take_hinted_page:
 					0, mtr);
 		ut_ad(!has_done_reservation || ret_page != FIL_NULL);
 		/*-----------------------------------------------------------*/
-	} else if (used < FSEG_FRAG_LIMIT) {
+	} else if (used < FSEG_FRAG_LIMIT) {                                                                                // 6、当前【段】未满32页，优先使用空闲独立页
 		/* 6. We allocate an individual page from the space
 		===================================================*/
 		buf_block_t* block = fsp_alloc_free_page(
@@ -3217,7 +3217,7 @@ take_hinted_page:
 		already. */
 		return(block);
 		/*-----------------------------------------------------------*/
-	} else {
+	} else {                                                                                                            // 7、兜底，申请一个新区
 		/* 7. We allocate a new extent and take its first page
 		======================================================*/
 		ret_descr = fseg_alloc_free_extent(seg_inode,

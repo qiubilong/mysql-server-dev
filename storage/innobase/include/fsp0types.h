@@ -58,7 +58,7 @@ page size | file space extent size
   16 KiB  |  64 pages = 1 MiB
   32 KiB  |  64 pages = 2 MiB
   64 KiB  |  64 pages = 4 MiB
-*/
+*/																														 //每区多少页，64页
 #define FSP_EXTENT_SIZE         ((UNIV_PAGE_SIZE <= (16384) ?	\
 				(1048576 / UNIV_PAGE_SIZE) :	\
 				((UNIV_PAGE_SIZE <= (32768)) ?	\

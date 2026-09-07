@@ -959,17 +959,17 @@ lock_trx_alloc_locks(trx_t* trx);
 				granted, it is just waiting for its
 				turn in the wait queue */
 /* Precise modes */
-#define LOCK_ORDINARY	0	/*!< this flag denotes an ordinary
+#define LOCK_ORDINARY	0	/*!< this flag denotes an ordinary                               // 临键锁
 				next-key lock in contrast to LOCK_GAP
 				or LOCK_REC_NOT_GAP */
-#define LOCK_GAP	512	/*!< when this bit is set, it means that the
+#define LOCK_GAP	512	/*!< when this bit is set, it means that the                         // 间隙锁
 				lock holds only on the gap before the record;
 				for instance, an x-lock on the gap does not
 				give permission to modify the record on which
 				the bit is set; locks of this type are created
 				when records are removed from the index chain
 				of records */
-#define LOCK_REC_NOT_GAP 1024	/*!< this bit means that the lock is only on
+#define LOCK_REC_NOT_GAP 1024	/*!< this bit means that the lock is only on                 // 行锁
 				the index record and does NOT block inserts
 				to the gap before the index record; this is
 				used in the case when we retrieve a record

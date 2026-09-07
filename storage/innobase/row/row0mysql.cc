@@ -3028,7 +3028,7 @@ Creates a table for MySQL. On failure the transaction will be rolled back
 and the 'table' object will be freed.
 @return error code or DB_SUCCESS */
 dberr_t
-row_create_table_for_mysql(
+row_create_table_for_mysql(                                                                                             // ## 内存表对象落库
 /*=======================*/
 	dict_table_t*	table,	/*!< in, own: table definition
 				(will be freed, or on DB_SUCCESS
@@ -3055,7 +3055,7 @@ row_create_table_for_mysql(
 
 	trx->op_info = "creating table";
 
-	if (row_mysql_is_system_table(table->name.m_name)) {
+	if (row_mysql_is_system_table(table->name.m_name)) {/* 用户表的名字不能跟系统表相同 */
 
 		ib::error() << "Trying to create a MySQL system table "
 			<< table->name << " of type InnoDB. MySQL system"
@@ -3090,14 +3090,14 @@ err_exit:
 		ut_ad(strstr(table->name.m_name, "/FTS_") != NULL);
 	}
 
-	node = tab_create_graph_create(table, heap);
+	node = tab_create_graph_create(table, heap);                                                                        // 创建插入表工作流，将表信息插入【系统表】-- QUE_NODE_CREATE_TABLE、QUE_NODE_INSERT
 
 	thr = pars_complete_graph_for_exec(node, trx, heap, NULL);
 
 	ut_a(thr == que_fork_start_command(
 			static_cast<que_fork_t*>(que_node_get_parent(thr))));
         // 这个方法中会调用到fil0fil.cc中的fil_assign_new_space_id()方法，从而
-	que_run_threads(thr);
+	que_run_threads(thr);                                                                                               //## 执行插入表工作流 -- QUE_NODE_CREATE_TABLE、QUE_NODE_INSERT-- 分配表id -- 创建表文件ibd -- 表定义插入系统表
 
 	err = trx->error_state;
 

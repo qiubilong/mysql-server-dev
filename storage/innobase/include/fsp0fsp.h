@@ -86,11 +86,11 @@ descriptor page, but used only in the first. */
 					dict_table_t::flags */
 #define	FSP_FRAG_N_USED		20	/* number of used pages in the
 					FSP_FREE_FRAG list */
-#define	FSP_FREE		24	/* list of free extents */
-#define	FSP_FREE_FRAG		(24 + FLST_BASE_NODE_SIZE)
+#define	FSP_FREE		24	/* list of free extents */                                                                  //表空间 -- 空闲区
+#define	FSP_FREE_FRAG		(24 + FLST_BASE_NODE_SIZE)                                                                  //表空间 -- 碎片区 -- 有空闲页
 					/* list of partially free extents not
 					belonging to any segment */
-#define	FSP_FULL_FRAG		(24 + 2 * FLST_BASE_NODE_SIZE)
+#define	FSP_FULL_FRAG		(24 + 2 * FLST_BASE_NODE_SIZE)                                                              //表空间 -- 用满区
 					/* list of full extents not belonging
 					to any segment */
 #define FSP_SEG_ID		(24 + 3 * FLST_BASE_NODE_SIZE)
@@ -138,12 +138,12 @@ typedef	byte	fseg_inode_t;
 #define FSEG_NOT_FULL_N_USED	8
 					/* number of used segment pages in
 					the FSEG_NOT_FULL list */
-#define	FSEG_FREE		12
+#define	FSEG_FREE		12																								//【段】 --链表 -- 空闲【区】
 					/* list of free extents of this
 					segment */
-#define	FSEG_NOT_FULL		(12 + FLST_BASE_NODE_SIZE)
+#define	FSEG_NOT_FULL		(12 + FLST_BASE_NODE_SIZE)																	//【段】--链表 -- 部分空闲【区】
 					/* list of partially free extents */
-#define	FSEG_FULL		(12 + 2 * FLST_BASE_NODE_SIZE)
+#define	FSEG_FULL		(12 + 2 * FLST_BASE_NODE_SIZE)																	//【段】--链表 -- 用满【区】
 					/* list of full extents */
 #define	FSEG_MAGIC_N		(12 + 3 * FLST_BASE_NODE_SIZE)
 					/* magic number used in debugging */
@@ -151,7 +151,7 @@ typedef	byte	fseg_inode_t;
 					/* array of individual pages
 					belonging to this segment in fsp
 					fragment extent lists */
-#define FSEG_FRAG_ARR_N_SLOTS	(FSP_EXTENT_SIZE / 2)
+#define FSEG_FRAG_ARR_N_SLOTS	(FSP_EXTENT_SIZE / 2)																	//一个段最多拥有32个碎片页
 					/* number of slots in the array for
 					the fragment pages */
 #define	FSEG_FRAG_SLOT_SIZE	4	/* a fragment page slot contains its
@@ -179,7 +179,7 @@ typedef	byte	fseg_inode_t;
 					fseg_alloc_free_page. Otherwise, we
 					use unused pages of the segment. */
 
-#define FSEG_FRAG_LIMIT		FSEG_FRAG_ARR_N_SLOTS
+#define FSEG_FRAG_LIMIT		FSEG_FRAG_ARR_N_SLOTS																		//一个段最多拥有32个碎片页
 					/* If the segment has >= this many
 					used pages, it may be expanded by
 					allocating extents to the segment;
@@ -223,7 +223,7 @@ the extent are free and which contain old tuple version to clean. */
 					there are old versions of tuples
 					on the page */
 /* States of a descriptor */
-#define	XDES_FREE		1	/* extent is in free list of space */
+#define	XDES_FREE		1	/* extent is in free list of space */                                                       //区状态 -- 空闲 -- 属于表空间、目前是公共的，所有段都可以申请
 #define	XDES_FREE_FRAG		2	/* extent is in free fragment list of
 					space */
 #define	XDES_FULL_FRAG		3	/* extent is in full fragment list of

@@ -1028,7 +1028,7 @@ bool do_command(THD *thd)
   if (classic)
     my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
-  return_value= dispatch_command(thd, &com_data, command);
+  return_value= dispatch_command(thd, &com_data, command);                   //处理客户端命令
   thd->get_protocol_classic()->get_packet()->shrink(
       thd->variables.net_buffer_length);
 
@@ -1215,7 +1215,7 @@ void reset_statement_timer(THD *thd)
     1   request of thread shutdown, i. e. if command is
         COM_QUIT/COM_SHUTDOWN
 */
-bool dispatch_command(THD *thd, const COM_DATA *com_data,
+bool dispatch_command(THD *thd, const COM_DATA *com_data,                                                               //执行客户端命令
                       enum enum_server_command command)
 {
   bool error= 0;
@@ -1489,7 +1489,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
     parser_state.m_input.m_has_digest = true;
 
-    mysql_parse(thd, &parser_state);
+    mysql_parse(thd, &parser_state);                                                                                    //解析&执行客户端命令
 
     while (!thd->killed && (parser_state.m_lip.found_semicolon != NULL) &&
            ! thd->is_error())
@@ -2452,7 +2452,7 @@ static inline void binlog_gtid_end_transaction(THD *thd)
 */
 
 int
-mysql_execute_command(THD *thd, bool first_level)
+mysql_execute_command(THD *thd, bool first_level)                                                                       //## 执行sql命令 -- 创建表
 {
   int res= FALSE;
   LEX  *const lex= thd->lex;
@@ -2770,7 +2770,7 @@ mysql_execute_command(THD *thd, bool first_level)
     thd->query_plan.set_query_plan(lex->sql_command, lex,
                                    !thd->stmt_arena->is_conventional());
 
-  switch (lex->sql_command) {
+  switch (lex->sql_command) {                                                                                           // ## sql命令选择
 
   case SQLCOM_SHOW_STATUS:
   {
@@ -3013,7 +3013,7 @@ case SQLCOM_PREPARE:
       res = ha_show_status(thd, lex->create_info.db_type, HA_ENGINE_MUTEX);
       break;
     }
-  case SQLCOM_CREATE_TABLE:
+  case SQLCOM_CREATE_TABLE:                                                                                             // ## 创建表命令
   {
     assert(first_table == all_tables && first_table != 0);
     bool link_to_local;
@@ -3285,7 +3285,7 @@ case SQLCOM_PREPARE:
       else
       {
         /* Regular CREATE TABLE */
-        res= mysql_create_table(thd, create_table,
+        res= mysql_create_table(thd, create_table,                                                                      // ## 创建表入口 -- 创建用户表
                                 &create_info, &alter_info);
       }
 
@@ -5423,7 +5423,7 @@ void mysql_init_multi_delete(LEX *lex)
                                the next query in the query text.
 */
 
-void mysql_parse(THD *thd, Parser_state *parser_state)
+void mysql_parse(THD *thd, Parser_state *parser_state)                                                                   //解析&执行客户端命令
 {
   int error MY_ATTRIBUTE((unused));
   DBUG_ENTER("mysql_parse");

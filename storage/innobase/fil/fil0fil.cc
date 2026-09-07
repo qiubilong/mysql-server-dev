@@ -3525,7 +3525,7 @@ For general tablespaces, the 'dbname/' part may be missing.
 must be >= FIL_IBD_FILE_INITIAL_SIZE
 @return DB_SUCCESS or error code */
 dberr_t
-fil_ibd_create(
+fil_ibd_create(																											// 创建表idb文件
 	ulint		space_id,
 	const char*	name,
 	const char*	path,
@@ -3557,7 +3557,7 @@ fil_ibd_create(
 		}
 	}
 
-	file = os_file_create(
+	file = os_file_create(																								// 创建表idb文件
 		innodb_data_file_key, path,
 		OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT,
 		OS_FILE_NORMAL,
@@ -3633,7 +3633,7 @@ fil_ibd_create(
 #else
 	atomic_write = false;
         // 初始化file内容为0
-	success = os_file_set_size(
+	success = os_file_set_size(                                                                                         // ibd前4页的内容初始化为0
 		path, file, size * UNIV_PAGE_SIZE, srv_read_only_mode);
 
 #endif /* !NO_FALLOCATE && UNIV_LINUX */

@@ -102,7 +102,7 @@ operator<<(
 Creates a table memory object.
 @return own: table object */
 dict_table_t*
-dict_mem_table_create(
+dict_mem_table_create(                                                                                                  // ## 创建表定义 dict_table -- mem_table就是代表内存中的table
 /*==================*/
 	const char*	name,	/*!< in: table name */
 	ulint		space,	/*!< in: space where the clustered index of
@@ -135,7 +135,7 @@ dict_mem_table_create(
 
 	table->flags = (unsigned int) flags;
 	table->flags2 = (unsigned int) flags2;
-	table->name.m_name = mem_strdup(name);
+	table->name.m_name = mem_strdup(name);                                                                              // 表名
 	table->space = (unsigned int) space;
 	table->n_t_cols = (unsigned int) (n_cols +
 			dict_table_get_n_sys_cols(table));
@@ -143,7 +143,7 @@ dict_mem_table_create(
 	table->n_cols = table->n_t_cols - table->n_v_cols;
 
 	table->cols = static_cast<dict_col_t*>(
-		mem_heap_alloc(heap, table->n_cols * sizeof(dict_col_t)));
+		mem_heap_alloc(heap, table->n_cols * sizeof(dict_col_t)));                                                    //表字段 分配内存
 	table->v_cols = static_cast<dict_v_col_t*>(
 		mem_heap_alloc(heap, n_v_cols * sizeof(*table->v_cols)));
 
@@ -292,7 +292,7 @@ dict_add_col_name(
 /**********************************************************************//**
 Adds a column definition to a table. */
 void
-dict_mem_table_add_col(
+dict_mem_table_add_col(                                                                                                 // 创建表字段
 /*===================*/
 	dict_table_t*	table,	/*!< in: table */
 	mem_heap_t*	heap,	/*!< in: temporary memory heap, or NULL */
@@ -332,7 +332,7 @@ dict_mem_table_add_col(
 
 	col = dict_table_get_nth_col(table, i);
 
-	dict_mem_fill_column_struct(col, i, mtype, prtype, len);
+	dict_mem_fill_column_struct(col, i, mtype, prtype, len);                                                       //设置表字段 dict_col_t属性
 }
 
 /** Adds a virtual column definition to a table.

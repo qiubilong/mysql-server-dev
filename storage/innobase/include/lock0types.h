@@ -43,11 +43,11 @@ struct lock_sys_t;
 struct lock_table_t;
 
 /* Basic lock modes */
-enum lock_mode {
+enum lock_mode {        // 锁枚举 ，数值从0开始 ， 【0、1、2、3】
 	LOCK_IS = 0,	/* intention shared */
 	LOCK_IX,	/* intention exclusive */
-	LOCK_S,		/* shared */
-	LOCK_X,		/* exclusive */
+	LOCK_S,		/* shared */       // 数值 2
+	LOCK_X,		/* exclusive */   // 数值 3
 	LOCK_AUTO_INC,	/* locks the auto-inc counter of a table
 			in an exclusive mode */
 	LOCK_NONE,	/* this is used elsewhere to note consistent read */

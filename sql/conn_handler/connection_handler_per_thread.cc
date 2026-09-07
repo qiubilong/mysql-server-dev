@@ -310,7 +310,7 @@ extern "C" void *handle_connection(void *arg)
     {
       while (thd_connection_alive(thd))
       {
-        if (do_command(thd))
+        if (do_command(thd))                                                        // 循环处理客户端命令
           break;
       }
       end_connection(thd);

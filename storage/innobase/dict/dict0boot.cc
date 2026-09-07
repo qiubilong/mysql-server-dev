@@ -72,7 +72,7 @@ dict_hdr_get(
 /**********************************************************************//**
 Returns a new table, index, or space id. */
 void
-dict_hdr_get_new_id(
+dict_hdr_get_new_id(																									// 系统字典 --  分配表id、索引id、表空间id
 /*================*/
 	table_id_t*		table_id,	/*!< out: table id
 						(not assigned if NULL) */
@@ -124,9 +124,9 @@ dict_hdr_get_new_id(
 		We cannot allocate the same space id to different objects. */
 	dict_hdr = dict_hdr_get(&mtr);
 
-	if (table_id) {
+	if (table_id) {                                                                                                     //## 分配一个新的表id -- tableId
 		id = mach_read_from_8(dict_hdr + DICT_HDR_TABLE_ID);
-		id++;
+		id++;                                                   // id自增
 		mlog_write_ull(dict_hdr + DICT_HDR_TABLE_ID, id, &mtr);
 		*table_id = id;
 	}
