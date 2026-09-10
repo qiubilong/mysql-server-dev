@@ -308,7 +308,7 @@ page_create_write_log(
 #endif /* !UNIV_HOTBACKUP */
 
 /** The page infimum and supremum of an empty page in ROW_FORMAT=REDUNDANT */
-static const byte infimum_supremum_redundant[] = { /* 页最小记录、最大记录 定义 */
+static const byte infimum_supremum_redundant[] = { /* 页最小记录、最大记录 定义 */                                           //最小记录
 	/* the infimum record */
 	0x08/*end offset*/,
 	0x01/*n_owned*/,
@@ -326,7 +326,7 @@ static const byte infimum_supremum_redundant[] = { /* 页最小记录、最大�
 };
 
 /** The page infimum and supremum of an empty page in ROW_FORMAT=COMPACT */
-static const byte infimum_supremum_compact[] = {
+static const byte infimum_supremum_compact[] = {																		//最大记录
 	/* the infimum record */
 	0x01/*n_owned=1*/,
 	0x00, 0x02/* heap_no=0, REC_STATUS_INFIMUM */,
@@ -344,7 +344,7 @@ The index page creation function.
 @return pointer to the page */
 static
 page_t*
-page_create_low(
+page_create_low(																										// 初始化index页 -- 存储最小记录，最大记录
 /*============*/
 	buf_block_t*	block,		/*!< in: a buffer block where the
 					page is created */
@@ -374,11 +374,11 @@ page_create_low(
 	page[PAGE_HEADER + PAGE_N_DIR_SLOTS + 1] = 2;
 	page[PAGE_HEADER + PAGE_DIRECTION + 1] = PAGE_NO_DIRECTION;
 
-	if (comp) {
+	if (comp) {                                                                                                         // 初始化index页，默认是压缩模式
 		page[PAGE_HEADER + PAGE_N_HEAP] = 0x80;/*page_is_comp()*/
 		page[PAGE_HEADER + PAGE_N_HEAP + 1] = PAGE_HEAP_NO_USER_LOW;
-		page[PAGE_HEADER + PAGE_HEAP_TOP + 1] = PAGE_NEW_SUPREMUM_END;
-		memcpy(page + PAGE_DATA, infimum_supremum_compact,
+		page[PAGE_HEADER + PAGE_HEAP_TOP + 1] = PAGE_NEW_SUPREMUM_END;                                                  //初始化index页，页数为2，包含最小记录、最大记录
+		memcpy(page + PAGE_DATA, infimum_supremum_compact,                                                          //初始化index页，存储最小记录，最大记录
 		       sizeof infimum_supremum_compact);
 		memset(page
 		       + PAGE_NEW_SUPREMUM_END, 0,
@@ -423,7 +423,7 @@ page_parse_create(
 Create an uncompressed B-tree or R-tree index page.
 @return pointer to the page */
 page_t*
-page_create(
+page_create(																											// 初始化index页 -- 存储最小记录，最大记录
 /*========*/
 	buf_block_t*	block,		/*!< in: a buffer block where the
 					page is created */

@@ -674,7 +674,7 @@ dict_mem_fill_column_struct(
 Creates an index memory object.
 @return own: index object */
 dict_index_t*
-dict_mem_index_create(
+dict_mem_index_create(																									 // 创建索引内存对象 dict_index_t
 /*==================*/
 	const char*	table_name,	/*!< in: table name */
 	const char*	index_name,	/*!< in: index name */
@@ -695,7 +695,7 @@ dict_mem_index_create(
 	index = static_cast<dict_index_t*>(
 		mem_heap_zalloc(heap, sizeof(*index)));
 
-	dict_mem_fill_index_struct(index, heap, table_name, index_name,
+	dict_mem_fill_index_struct(index, heap, table_name, index_name,														 // 创建索引内存对象
 				   space, type, n_fields);
 
 	dict_index_zip_pad_mutex_create_lazy(index);

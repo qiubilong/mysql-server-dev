@@ -162,7 +162,7 @@ fseg_alloc_free_page_low(
 @return pointer to the space header, page x-locked */
 UNIV_INLINE
 fsp_header_t*
-fsp_get_space_header(
+fsp_get_space_header(                                                                                                   // 获取表空间头页 -- 第0页
 	ulint			id,
 	const page_size_t&	page_size,
 	mtr_t*			mtr)
@@ -408,7 +408,7 @@ the start of the extent.
 @return bit index of the bit, ULINT_UNDEFINED if not found */
 UNIV_INLINE
 ulint
-xdes_find_bit(
+xdes_find_bit(																											//区中找到一个空闲页，一个区64页，使用bitmap标记空闲
 /*==========*/
 	xdes_t*	descr,	/*!< in: descriptor */
 	ulint	bit,	/*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
@@ -423,7 +423,7 @@ xdes_find_bit(
 	ut_ad(val <= TRUE);
 	ut_ad(hint < FSP_EXTENT_SIZE);
 	ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_SX_FIX));
-	for (i = hint; i < FSP_EXTENT_SIZE; i++) {
+	for (i = hint; i < FSP_EXTENT_SIZE; i++) {                                                                          //优先匹配指定页是否空闲，再从头寻找空闲页
 		if (val == xdes_mtr_get_bit(descr, bit, i, mtr)) {
 
 			return(i);
@@ -614,7 +614,7 @@ xdes_get_descriptor_with_space_hdr(
 
 	const page_size_t	page_size(flags);
         // 根据指定页号offset，计算出该页所在的区组对应的XDES页的页号
-	descr_page_no = xdes_calc_descriptor_page(page_size, offset);                                                       //每64页一个区，每256区一个区组，区描述页就在这里第0页
+	descr_page_no = xdes_calc_descriptor_page(page_size, offset);                                                       //每64页一个区，每256区一个区组，区描述页就在每个【区组】的第0页
 
 	buf_block_t*		block;
 
@@ -798,7 +798,7 @@ fsp_space_modify_check(
 @param[in,out]	mtr	mini-transaction */
 static
 void
-fsp_init_file_page(
+fsp_init_file_page(																										// 【表空间头页】初始化 -- 写入【页号】、【表空间id】
 	buf_block_t*	block,
 	mtr_t*		mtr)
 {
@@ -1071,7 +1071,7 @@ insert buffer tree root if space == 0.
 @param[in,out]	mtr		min-transaction
 @return	true on success, otherwise false. */
 bool
-fsp_header_init(																										// ##  初始化表空间头页
+fsp_header_init(																										// ##  初始化表空间头页 -- 【页号】、【表空间id】 -- 【页数】 -- 区链表 -- 段链表
 	ulint	space_id,
 	ulint	size,
 	mtr_t*	mtr)
@@ -1087,7 +1087,7 @@ fsp_header_init(																										// ##  初始化表空间头页
 	const page_id_t		page_id(space_id, 0);//第0页是【表空间头页】
 	const page_size_t	page_size(space->flags);
 
-	block = buf_page_create(page_id, page_size, mtr);                                                                   // ##  分配一个内存页
+	block = buf_page_create(page_id, page_size, mtr);                                                                   // ## 【表空间头页】加载到内存
 	buf_page_get(page_id, page_size, RW_SX_LATCH, mtr);
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
@@ -1097,32 +1097,32 @@ fsp_header_init(																										// ##  初始化表空间头页
 
 	/* The prior contents of the file page should be ignored */
 
-	fsp_init_file_page(block, mtr);																					    // 表空间头页 -- 写入【页号】、【表空间id】
+	fsp_init_file_page(block, mtr);																					    // 【表空间头页】初始化 -- 写入【页号】、【表空间id】
 	page = buf_block_get_frame(block);
 
 	mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_TYPE_FSP_HDR,
 			 MLOG_2BYTES, mtr);
 
-	header = FSP_HEADER_OFFSET + page;//表空间页 -- 页头偏移
+	header = FSP_HEADER_OFFSET + page;																					//设置表空间页【头】信息
 
 	mlog_write_ulint(header + FSP_SPACE_ID, space_id, MLOG_4BYTES, mtr);
 	mlog_write_ulint(header + FSP_NOT_USED, 0, MLOG_4BYTES, mtr);
 
-	mlog_write_ulint(header + FSP_SIZE, size, MLOG_4BYTES, mtr);                                                 //表空间页数 -- 4
+	mlog_write_ulint(header + FSP_SIZE, size, MLOG_4BYTES, mtr);                                                 //表空间【页数】 = 4
 	mlog_write_ulint(header + FSP_FREE_LIMIT, 0, MLOG_4BYTES, mtr);
 	mlog_write_ulint(header + FSP_SPACE_FLAGS, space->flags,
 			 MLOG_4BYTES, mtr);
 	mlog_write_ulint(header + FSP_FRAG_N_USED, 0, MLOG_4BYTES, mtr);
 
-	flst_init(header + FSP_FREE, mtr);
+	flst_init(header + FSP_FREE, mtr);                                                                              // 初始化表空间 -- 区链表【空闲区】【碎片区】【满区】
 	flst_init(header + FSP_FREE_FRAG, mtr);
 	flst_init(header + FSP_FULL_FRAG, mtr);
 	flst_init(header + FSP_SEG_INODES_FULL, mtr);
-	flst_init(header + FSP_SEG_INODES_FREE, mtr);
+	flst_init(header + FSP_SEG_INODES_FREE, mtr);                                                                   // 初始化表空间 -- 段链表【空闲碎片页】【满页】
 
 	mlog_write_ull(header + FSP_SEG_ID, 1, mtr);
 
-	fsp_fill_free_list(!is_system_tablespace(space_id),																	// 初始化表空间 -- 空闲区链表
+	fsp_fill_free_list(!is_system_tablespace(space_id),
 			   space, header, mtr);
 
 	/* For encryption tablespace, we need to save the encryption
@@ -1898,7 +1898,7 @@ x-latched only by mtr, and freed in mtr in that case.
 or rw_lock_x_lock_count(&block->lock) == 1 */
 static
 buf_block_t*
-fsp_page_create(
+fsp_page_create(                                                                                                        // 加载指定页到内存buf
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
 	rw_lock_type_t		rw_latch,
@@ -1966,7 +1966,7 @@ initialized (may be the same as mtr)
 @retval block	(not allocated or initialized) otherwise */
 static MY_ATTRIBUTE((warn_unused_result))
 buf_block_t*
-fsp_alloc_free_page(
+fsp_alloc_free_page(                                                                                                    // 从表空间中申请一个空闲页
 	ulint			space,
 	const page_size_t&	page_size,
 	ulint			hint,
@@ -1985,12 +1985,12 @@ fsp_alloc_free_page(
 	ut_ad(init_mtr);
 
 	ut_d(fsp_space_modify_check(space, mtr));
-	header = fsp_get_space_header(space, page_size, mtr);
+	header = fsp_get_space_header(space, page_size, mtr);																// 获取表空间头页 -- 第0页
 
 	/* Get the hinted descriptor */
-	descr = xdes_get_descriptor_with_space_hdr(header, space, hint, mtr);
+	descr = xdes_get_descriptor_with_space_hdr(header, space, hint, mtr);                                          // 获取区描述对象
 
-	if (descr && (xdes_get_state(descr, mtr) == XDES_FREE_FRAG)) {
+	if (descr && (xdes_get_state(descr, mtr) == XDES_FREE_FRAG)) {                                                      //可用碎片区
 		/* Ok, we can take this extent */
 	} else {
 		/* Else take the first extent in free_frag list */
@@ -2004,7 +2004,7 @@ fsp_alloc_free_page(
 			FREE_FRAG list. But we will allocate our page from the
 			the free extent anyway. */
 
-			descr = fsp_alloc_free_extent(space, page_size,
+			descr = fsp_alloc_free_extent(space, page_size,                                                             //无空闲区、无碎片区，则申请一个新的空闲区
 						      hint, mtr);
 
 			if (descr == NULL) {
@@ -2028,7 +2028,7 @@ fsp_alloc_free_page(
 	/* Now we have in descr an extent with at least one free page. Look
 	for a free page in the extent. */
 
-	free = xdes_find_bit(descr, XDES_FREE_BIT, TRUE,
+	free = xdes_find_bit(descr, XDES_FREE_BIT, TRUE,                                                                 //区中找到一个空闲页，一个区64页，使用bitmap标记空闲
 			     hint % FSP_EXTENT_SIZE, mtr);
 	if (free == ULINT_UNDEFINED) {
 
@@ -2259,7 +2259,7 @@ fsp_seg_inode_page_find_used(
 @return segment inode index, or ULINT_UNDEFINED if not found */
 static
 ulint
-fsp_seg_inode_page_find_free(
+fsp_seg_inode_page_find_free(																							// 在inode段页中找到一个可用inode节点
 	page_t*			page,
 	ulint			i,
 	const page_size_t&	page_size,
@@ -2290,7 +2290,7 @@ Allocates a new file segment inode page.
 @return TRUE if could be allocated */
 static
 ibool
-fsp_alloc_seg_inode_page(
+fsp_alloc_seg_inode_page(																								// 申请一个【空闲】段页,加到空闲的段页链表
 /*=====================*/
 	fsp_header_t*	space_header,	/*!< in: space header */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
@@ -2330,7 +2330,7 @@ fsp_alloc_seg_inode_page(
 		inode = fsp_seg_inode_page_get_nth_inode(
 			page, i, page_size, mtr);
 
-		mlog_write_ull(inode + FSEG_ID, 0, mtr);
+		mlog_write_ull(inode + FSEG_ID, 0, mtr);																	// 将inode段对象页的【inode段对象初始化】
 	}
 
         // 把这个page添加到SEG_INODES_FREE链表中去
@@ -2346,7 +2346,7 @@ Allocates a new file segment inode.
 @return segment inode, or NULL if not enough space */
 static
 fseg_inode_t*
-fsp_alloc_seg_inode(
+fsp_alloc_seg_inode(																									// ### 分配一个inode段对象	,每个段对应一个INODE，如果没有空闲页的【段页】，则需要申请一个新的段页，再返回段对象
 /*================*/
 	fsp_header_t*	space_header,	/*!< in: space header */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
@@ -2359,15 +2359,15 @@ fsp_alloc_seg_inode(
 	ut_ad(page_offset(space_header) == FSP_HEADER_OFFSET);
 
 	/* Allocate a new segment inode page if needed. */
-        // FSP_SEG_INODES_FREE = 32 + 4 * 16 = 96
+      /*  // FSP_SEG_INODES_FREE = 32 + 4 * 16 = 96
         // space_header + FSP_SEG_INODES_FREE = 38 + 96 = 134，正好是SEG_INODES_FREE链表的基节点
         // 从基节点就能得出链表的长度，为0
         // 每个段对应一个INODE，如果一个表的段特别多，就会有很多INODE，而这些INODE会存在专门存INODE对象的INODE页中，比如表空间的第3页（page_no为2），就是用来存INODE对象的
         // 如果INODE对象特别多，就需要多个INODE页
         // SEG_INODES_FREE链表中的INODE页表示有空闲空间
-        // 如果没有空闲空间，那就要新生成一个page用来存INODE，生成的新page会添加到SEG_INODES_FREE链表中
+        // 如果没有空闲空间，那就要新生成一个page用来存INODE，生成的新page会添加到SEG_INODES_FREE链表中*/
 	if (flst_get_len(space_header + FSP_SEG_INODES_FREE) == 0
-	    && !fsp_alloc_seg_inode_page(space_header, mtr)) {
+	    && !fsp_alloc_seg_inode_page(space_header, mtr)) {			                                                    // 如果没有空闲页的【段页】，则需要申请一个新的段页
 		return(NULL);
 	}
 
@@ -2379,16 +2379,16 @@ fsp_alloc_seg_inode(
 		page_get_space_id(page_align(space_header)),
 		flst_get_first(space_header + FSP_SEG_INODES_FREE, mtr).page);
 
-        // 空闲INODE页的控制块
+        /* // 空闲INODE页的控制块*/
 	block = buf_page_get(page_id, page_size, RW_SX_LATCH, mtr);
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 	fil_block_check_type(block, FIL_PAGE_INODE, mtr);
 
-        // 空闲INODE页本身
-	page = buf_block_get_frame(block);
+         /*// 空闲INODE页本身*/
+	page = buf_block_get_frame(block);																					// 加载 inode段页
 
         // 从page中获取可用的inode的下标
-	n = fsp_seg_inode_page_find_free(page, 0, page_size, mtr);
+	n = fsp_seg_inode_page_find_free(page, 0, page_size, mtr);														// 在inode段页中找到一个可用inode节点
 
 	ut_a(n != ULINT_UNDEFINED);
 
@@ -2404,7 +2404,7 @@ fsp_alloc_seg_inode(
 		flst_remove(space_header + FSP_SEG_INODES_FREE,
 			    page + FSEG_INODE_PAGE_NODE, mtr);
 
-		flst_add_last(space_header + FSP_SEG_INODES_FULL,
+		flst_add_last(space_header + FSP_SEG_INODES_FULL,																// 如果inode段页最后一个iNode对象，这表示【inode段页】已用满
 			      page + FSEG_INODE_PAGE_NODE, mtr);
 	}
 
@@ -2649,7 +2649,7 @@ Creates a new segment.
 @return the block where the segment header is placed, x-latched, NULL
 if could not create segment because of lack of space */
 buf_block_t*
-fseg_create_general(
+fseg_create_general(																								    //### 1、创建b+树索引，创建【叶子节点、非叶子节点】段
 /*================*/
 	ulint	space_id,/*!< in: space id */
 	ulint	page,	/*!< in: page where the segment header is placed: if
@@ -2685,7 +2685,7 @@ fseg_create_general(
 	const page_size_t	page_size(space->flags);
 
         // page不等于0，表示不用申请新Page，直接根据页号获取对应的page，后面把新增的段的段头存放在此页，如果page=0表示要新建一页并把段头存在此页
-	if (page != 0) {
+	if (page != 0) {																									//page代表索引根页
 
                 // 获取page中存放段头的区域的指针header
 		block = buf_page_get(page_id_t(space_id, page), page_size,
@@ -2722,7 +2722,7 @@ fseg_create_general(
 
         // 从当前表空间中分配一个空闲的inode对象，一个inode对象对应一个段，inode对象中记录了该对段对应了哪些区和哪些碎片页
         // 得到一个空闲的inode对象后，就需要向inode中写入信息了
-	inode = fsp_alloc_seg_inode(space_header, mtr);
+	inode = fsp_alloc_seg_inode(space_header, mtr);																		// ### 分配一个inode段对象，每个段对应一个INODE，一个索引两个段
 
 	if (inode == NULL) {
 
@@ -2732,7 +2732,7 @@ fseg_create_general(
 	/* Read the next segment id from space header and increment the
 	value in space header */
         // 获取段id
-	seg_id = mach_read_from_8(space_header + FSP_SEG_ID);
+	seg_id = mach_read_from_8(space_header + FSP_SEG_ID);                                                             // 索引分配段id，设置inode段对象的段id
         // 段id自增，给下一个段用
 	mlog_write_ull(space_header + FSP_SEG_ID, seg_id + 1, mtr);
         // 将段id写入inode
@@ -2741,7 +2741,7 @@ fseg_create_general(
         // 初始化inode的其他属性
 	mlog_write_ulint(inode + FSEG_NOT_FULL_N_USED, 0, MLOG_4BYTES, mtr);
 
-	flst_init(inode + FSEG_FREE, mtr);
+	flst_init(inode + FSEG_FREE, mtr);                                                                             //【段】 --链表 -- 空闲【区】
 	flst_init(inode + FSEG_NOT_FULL, mtr);
 	flst_init(inode + FSEG_FULL, mtr);
 
@@ -2753,7 +2753,7 @@ fseg_create_general(
 
         // 分配一个新page
 	if (page == 0) {
-		block = fseg_alloc_free_page_low(space, page_size,
+		block = fseg_alloc_free_page_low(space, page_size,																//## 向【段】申请一个空闲页 -- 精准命中（段区、表空间区）> 就近取用（同区空闲）> 内部消化（段碎片区、空闲区）  > 外部获取(独立页、新区)
 						 inode, 0, FSP_UP, RW_SX_LATCH,
 						 mtr, mtr
 #ifdef UNIV_DEBUG
@@ -2805,7 +2805,7 @@ Creates a new segment.
 @return the block where the segment header is placed, x-latched, NULL
 if could not create segment because of lack of space */
 buf_block_t*
-fseg_create(
+fseg_create(																											 //### 1、创建b+树索引，创建【叶子节点、非叶子节点】段
 /*========*/
 	ulint	space,	/*!< in: space id */
 	ulint	page,	/*!< in: page where the segment header is placed: if
@@ -2816,7 +2816,7 @@ fseg_create(
 			on the page */
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 {
-	return(fseg_create_general(space, page, byte_offset, FALSE, mtr));
+	return(fseg_create_general(space, page, byte_offset, FALSE, mtr));                                 //### 1、创建b+树索引，创建【叶子节点、非叶子节点】段
 }
 
 /**********************************************************************//**
@@ -3033,7 +3033,7 @@ reserved, in this case we will never return NULL
 @retval block	(not allocated or initialized) otherwise */
 static
 buf_block_t*
-fseg_alloc_free_page_low(																								// ## 段申请一个空闲页 -- 精准命中（段区、表空间区）> 就近取用（同区空闲）> 内部消化（段碎片区、空闲区）  > 外部获取(独立页、新区)
+fseg_alloc_free_page_low(																								// ## 向【段】申请一个空闲页 -- 精准命中（段区、表空间区）> 就近取用（同区空闲）> 内部消化（段碎片区、空闲区）  > 外部获取(独立页、新区)
 	fil_space_t*		space,
 	const page_size_t&	page_size,
 	fseg_inode_t*		seg_inode,

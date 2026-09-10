@@ -1678,7 +1678,7 @@ public:
 
 /** The buffer control block structure */
 
-struct buf_block_t{
+struct buf_block_t{																										// 页内存对象
 
 	/** @name General fields */
 	/* @{ */
@@ -1687,7 +1687,7 @@ struct buf_block_t{
 					be the first field, so that
 					buf_pool->page_hash can point
 					to buf_page_t or buf_block_t */
-	byte*		frame;		/*!< pointer to buffer frame which
+	byte*		frame;		/*!< pointer to buffer frame which                                                          //页内容
 					is of size UNIV_PAGE_SIZE, and
 					aligned to an address divisible by
 					UNIV_PAGE_SIZE */

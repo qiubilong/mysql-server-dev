@@ -1421,7 +1421,7 @@ dict_table_set_big_rows(
 /**********************************************************************//**
 Adds a table object to the dictionary cache. */
 void
-dict_table_add_to_cache(
+dict_table_add_to_cache(                                                                                                //表id、表名hash缓存
 /*====================*/
 	dict_table_t*	table,		/*!< in: table */
 	ibool		can_be_evicted,	/*!< in: TRUE if can be evicted */
@@ -1477,11 +1477,11 @@ dict_table_add_to_cache(
 	}
 
 	/* Add table to hash table of tables */
-	HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash, fold,
+	HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash, fold,                                                    // 表名hash
 		    table);
 
 	/* Add table to hash table of tables based on table id */
-	HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash, id_fold,
+	HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash, id_fold,                                                // 【表id】hash
 		    table);
 
 	table->can_be_evicted = can_be_evicted;

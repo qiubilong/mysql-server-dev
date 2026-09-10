@@ -69,7 +69,7 @@ ut_dbg_assertion_failed(
 
 #ifdef UNIV_DEBUG
 /** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
-#define ut_ad(EXPR)	ut_a(EXPR)
+#define ut_ad(EXPR)	ut_a(EXPR)																							// 相当于java的断言
 /** Debug statement. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_d(EXPR)	EXPR
 #else

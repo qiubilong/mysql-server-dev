@@ -964,7 +964,7 @@ log record during recovery
 record during recovery
 @return page number of the created root, FIL_NULL if did not succeed */
 ulint
-btr_create(
+btr_create(																											    //### 创建b+树索引
 	ulint			type,
 	ulint			space,
 	const page_size_t&	page_size,
@@ -1013,12 +1013,12 @@ btr_create(
 		ut_ad(block->page.id.page_no() == IBUF_TREE_ROOT_PAGE_NO);
 	} else {
 
-                // 创建PAGE_BTR_SEG_TOP段（非叶子节点段），并将段头存在根页
+                // 创建PAGE_BTR_SEG_TOP段（非叶子节点段），并将段头存在根页                                                     //每个索引根页，存在【叶子节点段】【叶子节点段】的头部，段对象在哪一页，偏移值
                 // 会生成一个新的Page
                 // 会生成一个新的Inode
                 // 会把Inode对象存在Inode页中，具体是第几个Inode对象等信息存在新Page的PAGE_BTR_SEG_TOP区域
                 // 新Page就是索引B+树的根页
-		block = fseg_create(space, 0,
+		block = fseg_create(space, 0,                                                                                   //### 1、创建b+树索引，首先创建【非叶子节点】段
 				    PAGE_HEADER + PAGE_BTR_SEG_TOP, mtr);
 	}
 
@@ -1044,7 +1044,7 @@ btr_create(
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE_NEW);
 
                 // 创建PAGE_BTR_SEG_LEAF段（叶子节点段），并将段头存在根页
-		if (!fseg_create(space, page_no,
+		if (!fseg_create(space, page_no,                                                                                //### 2、创建b+树索引，其次创建【叶子节点】段
 				 PAGE_HEADER + PAGE_BTR_SEG_LEAF, mtr)) {
 			/* Not enough space for new segment, free root
 			segment before return. */
@@ -1095,7 +1095,7 @@ btr_create(
 	} else {
 		if (index != NULL) {
                         // 将空闲Page初始化或索引页
-			page = page_create(block, mtr,
+			page = page_create(block, mtr,																				// 3、初始化索引页 - index页 -- 存储最小记录，最大记录
 					   dict_table_is_comp(index->table),
 					   dict_index_is_spatial(index));
 		} else {
@@ -1105,7 +1105,7 @@ btr_create(
 				type == DICT_SPATIAL);
 		}
 		/* Set the level of the new index page */
-		btr_page_set_level(page, NULL, 0, mtr);
+		btr_page_set_level(page, NULL, 0, mtr);                                                             //第一层节点
 	}
 
 	/* Set the index id of the page */

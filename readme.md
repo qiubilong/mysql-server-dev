@@ -1,6 +1,9 @@
 
-## 创建表
-storage\innobase\handler\ha_innodb.cc:create_table()
+## 创建表 -- 创建索引 -- 构建B+树🌲
+### storage\innobase\handler\ha_innodb.cc:create_table()
+### 构建B+树 storage\innobase\btr\btr0btr.cc:btr_create
+
+一个【索引】两个段（叶子节点段、非叶子结点段），从【段】中申请【空闲页】，【段】管理了【空闲区】链表，一个【区】64页
 ```` sql
 CREATE TABLE `t1` (
 `id` int(11) NOT NULL,

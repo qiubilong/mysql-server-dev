@@ -973,7 +973,7 @@ Performs an execution step on a query thread.
 parameter if, e.g., a subprocedure call is made */
 UNIV_INLINE
 que_thr_t*
-que_thr_step(                                                                                                            // 执行插入表工作流 -- QUE_NODE_CREATE_TABLE、QUE_NODE_INSERT
+que_thr_step(                                                                                                            // 【工作流】执行插入表 -- QUE_NODE_CREATE_TABLE、QUE_NODE_INSERT
 /*=========*/
 	que_thr_t*	thr)	/*!< in: query thread */
 {
@@ -1034,7 +1034,7 @@ que_thr_step(                                                                   
 	} else if (type == QUE_NODE_SELECT) {
 		thr = row_sel_step(thr);
 	} else if (type == QUE_NODE_INSERT) {
-		thr = row_ins_step(thr);                                                                                         // 执行插入表工作流 -- QUE_NODE_INSERT -- 将表定义、表字段定义插入【系统表】
+		thr = row_ins_step(thr);
 	} else if (type == QUE_NODE_UPDATE) {
 		thr = row_upd_step(thr);
 	} else if (type == QUE_NODE_FETCH) {
@@ -1061,9 +1061,9 @@ que_thr_step(                                                                   
 		thr = exit_step(thr);
 	} else if (type == QUE_NODE_ROLLBACK) {
 		thr = trx_rollback_step(thr);
-	} else if (type == QUE_NODE_CREATE_TABLE) {
-		thr = dict_create_table_step(thr);                                                                               // 执行插入表工作流 -- QUE_NODE_CREATE_TABLE-- 分配表id -- 创建表文件ibd -- 表定义插入系统表
-	} else if (type == QUE_NODE_CREATE_INDEX) {
+	} else if (type == QUE_NODE_CREATE_TABLE) {																			// ##  执行【创建表】工作流 -- QUE_NODE_CREATE_TABLE-- 分配表id -- 创建表文件ibd -- 表定义插入系统表
+		thr = dict_create_table_step(thr);
+	} else if (type == QUE_NODE_CREATE_INDEX) {																			// ## 执行【构建索引】工作流 -- 【索引】插入系统表 -- 构建B+树
 		thr = dict_create_index_step(thr);
 	} else if (type == QUE_NODE_ROW_PRINTF) {
 		thr = row_printf_step(thr);
@@ -1116,7 +1116,7 @@ que_run_threads_low(
 		may change if, e.g., a subprocedure call is made */
 
 		/*-------------------------*/
-		next_thr = que_thr_step(thr);                                                                                    // 执行插入表工作流 -- QUE_NODE_CREATE_TABLE、QUE_NODE_INSERT-- 分配表id -- 创建表文件ibd -- 表定义插入系统表
+		next_thr = que_thr_step(thr);                                                                                    // 执行工作流 -- 创建表、创建索引 -- QUE_NODE_CREATE_TABLE-- 分配表id -- 创建表文件ibd -- 表定义插入系统表 --QUE_NODE_CREATE_INDEX
 		/*-------------------------*/
 
 		trx_mutex_enter(trx);
@@ -1156,7 +1156,7 @@ que_run_threads(
 loop:
 	ut_a(thr_get_trx(thr)->error_state == DB_SUCCESS);
 
-	que_run_threads_low(thr);                                                                                           // 执行插入表工作流 -- QUE_NODE_CREATE_TABLE、QUE_NODE_INSERT
+	que_run_threads_low(thr);                                                                                           // 执行工作流 -- 创建表QUE_NODE_CREATE_TABLE、创建索引QUE_NODE_CREATE_INDEX
 
 	switch (thr->state) {
 

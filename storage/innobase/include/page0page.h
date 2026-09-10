@@ -93,7 +93,7 @@ typedef	byte		page_header_t;
 
 #ifndef UNIV_INNOCHECKSUM
 
-#define PAGE_BTR_SEG_LEAF 36	/* file segment header for the leaf pages in
+#define PAGE_BTR_SEG_LEAF 36	/* file segment header for the leaf pages in											// 叶子节点段
 				a B-tree: defined only on the root page of a
 				B-tree, but not in the root of an ibuf tree */
 #define PAGE_BTR_IBUF_FREE_LIST	PAGE_BTR_SEG_LEAF
@@ -103,7 +103,7 @@ typedef	byte		page_header_t;
 				the root page of an ibuf tree, and at the same
 				place is the free list node if the page is in
 				a free list */
-#define PAGE_BTR_SEG_TOP (36 + FSEG_HEADER_SIZE)
+#define PAGE_BTR_SEG_TOP (36 + FSEG_HEADER_SIZE)																		// 非叶子节点段
 				/* file segment header for the non-leaf pages
 				in a B-tree: defined only on the root page of
 				a B-tree, but not in the root of an ibuf

@@ -419,7 +419,7 @@ extern const char*	fil_path_to_mysql_datadir;
 extern Folder   	folder_mysql_datadir;
 
 /** Initial size of a single-table tablespace in pages */
-#define FIL_IBD_FILE_INITIAL_SIZE	4
+#define FIL_IBD_FILE_INITIAL_SIZE	4                                                                                   // 创建表空间，默认初始化页数
 
 /** 'null' (undefined) page offset in the context of file spaces */
 #define	FIL_NULL	ULINT32_UNDEFINED

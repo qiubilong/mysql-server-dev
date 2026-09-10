@@ -3028,7 +3028,7 @@ Creates a table for MySQL. On failure the transaction will be rolled back
 and the 'table' object will be freed.
 @return error code or DB_SUCCESS */
 dberr_t
-row_create_table_for_mysql(                                                                                             // ## 内存表对象落库
+row_create_table_for_mysql(                                                                                             // ## 内存表对象落库 - 创建表文件ibd、初始化表空间头页【页号】、【表空间id】 -- 【页数】 -- 区链表 -- 段页链表
 /*=======================*/
 	dict_table_t*	table,	/*!< in, own: table definition
 				(will be freed, or on DB_SUCCESS
@@ -3221,7 +3221,7 @@ to create an index results in dropping the whole table! This is no problem
 currently as all indexes must be created at the same time as the table.
 @return error number or DB_SUCCESS */
 dberr_t
-row_create_index_for_mysql(
+row_create_index_for_mysql(																								//索引对象 dict_index_t 落库
 /*=======================*/
 	dict_index_t*	index,		/*!< in, own: index definition
 					(will be freed) */
@@ -3322,7 +3322,7 @@ row_create_index_for_mysql(
 				static_cast<que_fork_t*>(
 					que_node_get_parent(thr))));
                 // 执行nodel中定义的操作
-		que_run_threads(thr);
+		que_run_threads(thr);																							//索引对象 dict_index_t 落库 -- QUE_NODE_CREATE_INDEX
 
 		err = trx->error_state;
 

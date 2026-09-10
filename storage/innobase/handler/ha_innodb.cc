@@ -9966,7 +9966,7 @@ innodb_base_col_setup_for_stored(
 @return ER_* level error */
 inline MY_ATTRIBUTE((warn_unused_result))
 int
-create_table_info_t::                             create_table_def()                                                    // ## 创建表 table
+create_table_info_t::                             create_table_def()                                                    // ## 创建表 table = 内存【表对象】 dict_table_t + 内存表对象落库、创建表文件ibd、初始化表空间头页【页号】、【表空间id】 -- 【页数】 -- 区链表 -- 段页链表
 {
 	dict_table_t*	table;
 	ulint		n_cols;
@@ -10053,7 +10053,7 @@ create_table_info_t::                             create_table_def()            
 		actual_n_cols += 1;
 	}
 
-        // 创建dict_table_t对象
+        /* 创建dict_table_t对象*/
 	table = dict_mem_table_create(m_table_name, space_id,
 				      actual_n_cols, num_v, m_flags, m_flags2);                                         // ## 创建  内存【表对象】 dict_table_t
 
@@ -10402,7 +10402,7 @@ err_col:
 
 		if (err == DB_SUCCESS) {
 
-			err = row_create_table_for_mysql(                                                                           // ## 内存表对象落库
+			err = row_create_table_for_mysql(                                                                           // ## 内存表对象落库 - 创建表文件ibd、初始化表空间头页【页号】、【表空间id】 -- 【页数】 -- 区链表 -- 段页链表
 				table, algorithm, m_trx, false);
 		}
 
@@ -10456,7 +10456,7 @@ error_ret:
 Creates an index in an InnoDB database. */
 inline
 int
-create_index(
+create_index(																											//## 创建索引
 /*=========*/
 	trx_t*		trx,		/*!< in: InnoDB transaction handle */
 	const TABLE*	form,		/*!< in: information on table
@@ -10521,11 +10521,11 @@ create_index(
 	ind_type = 0;
 
 	if (key_num == form->s->primary_key) {
-		ind_type |= DICT_CLUSTERED;
+		ind_type |= DICT_CLUSTERED;																						//聚簇索引
 	}
 
 	if (key->flags & HA_NOSAME) {
-		ind_type |= DICT_UNIQUE;
+		ind_type |= DICT_UNIQUE;																						//唯一索引
 	}
 
 	field_lengths = (ulint*) my_malloc(PSI_INSTRUMENT_ME,
@@ -10535,7 +10535,7 @@ create_index(
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
         // 创建dict_index_t对象
-	index = dict_mem_index_create(table_name, key->name, 0,
+	index = dict_mem_index_create(table_name, key->name, 0,												    // 创建索引内存对象 dict_index_t
 				      ind_type, key->user_defined_key_parts);
 
 	innodb_session_t*& priv = thd_to_innodb_session(trx->mysql_thd);
@@ -10558,7 +10558,7 @@ create_index(
 		index->disable_ahi = true;
 	}
         // 遍历主键字段，联合主键就有多个字段，每个字段对应一个dict_field_t对象
-	for (ulint i = 0; i < key->user_defined_key_parts; i++) {
+	for (ulint i = 0; i < key->user_defined_key_parts; i++) {                                                           // 设置索引的字段  dict_field_t
 		KEY_PART_INFO*	key_part = key->key_part + i;
 		ulint		prefix_len;
 		ulint		col_type;
@@ -10638,7 +10638,7 @@ create_index(
 
         // 核心是调用row_create_index_for_mysql()
 	error = convert_error_code_to_mysql(
-		row_create_index_for_mysql(index, trx, field_lengths, handler),
+		row_create_index_for_mysql(index, trx, field_lengths, handler),													//## 索引对象落库
 		flags, NULL);
 
 	if (error && handler != NULL) {
@@ -10655,7 +10655,7 @@ Creates an index to an InnoDB table when the user has defined no
 primary index. */
 inline
 int
-create_clustered_index_when_no_primary(
+create_clustered_index_when_no_primary(																					// 未定义主键索引， 创建【隐藏】主键索引
 /*===================================*/
 	trx_t*		trx,		/*!< in: InnoDB transaction handle */
 	ulint		flags,		/*!< in: InnoDB table flags */
@@ -10668,7 +10668,7 @@ create_clustered_index_when_no_primary(
 	id where to store the table */
 	index = dict_mem_index_create(table_name,
 				      innobase_index_reserve_name,
-				      0, DICT_CLUSTERED, 0);
+				      0, DICT_CLUSTERED, 0);															//索引字段=0时，表示隐藏主键索引
 
 	innodb_session_t*& priv = thd_to_innodb_session(trx->mysql_thd);
 
@@ -11958,37 +11958,37 @@ create_table_info_t::create_table()     // ## 创建表                         
 	DBUG_ENTER("create_table");
 
 	/* Look for a primary key */
-        // primary_key_no == 0 表示自定义了主键
+        /* primary_key_no == 0 表示自定义了主键 */
 	primary_key_no = (m_form->s->primary_key != MAX_KEY ?
 			  (int) m_form->s->primary_key : -1);
 
 	/* Our function innobase_get_mysql_key_number_for_index assumes
 	the primary key is always number 0, if it exists */
 	ut_a(primary_key_no == -1 || primary_key_no == 0);
-        // 会创建ibd文件
-	error = create_table_def();                                                     // ## 创建表入口
+        /* 会创建ibd文件 */
+	error = create_table_def();																							 // ## 创建表入口 -- 创建表内存对象table，创建表空间ibd文件，表定义插入系统表、初始化表空间头页【页号】、【表空间id】【页数】 -- 区链表 -- 段页链表
 	if (error) {
 		DBUG_RETURN(error);
 	}
 
 	/* Create the keys */
-        // 没有定义索引，或者没有定义PRIMARY，就会创建GEN_CLUSTER_INDEX
+        /* 没有定义索引，或者没有定义PRIMARY，就会创建GEN_CLUSTER_INDEX */
 	if (m_form->s->keys == 0 || primary_key_no == -1) {
 		/* Create an index which is used as the clustered index;
 		order the rows by their row id which is internally generated
 		by InnoDB */
                 // 通过row_id来创建聚集索引
-		error = create_clustered_index_when_no_primary(
+		error = create_clustered_index_when_no_primary(                                                                 // 未定义主键索引， 创建【隐藏】主键索引
 			m_trx, m_flags, m_table_name);
 		if (error) {
 			DBUG_RETURN(error);
 		}
 	}
-        // 定义了PRIMARY
+        /* 定义了PRIMARY*/
 	if (primary_key_no != -1) {
 		/* In InnoDB the clustered index must always be created
 		first */
-		if ((error = create_index(m_trx, m_form, m_flags, m_table_name,
+		if ((error = create_index(m_trx, m_form, m_flags, m_table_name,													//## 创建主键索引，primary_key_no=0，表示第0个，也是表明定义了主键索引（主键索引 > not null的唯一索引 > 隐藏主键索引 ）
 					  (uint) primary_key_no))) {
 			DBUG_RETURN(error);
 		}
@@ -12062,7 +12062,7 @@ create_table_info_t::create_table()     // ## 创建表                         
 		if (i != static_cast<uint>(primary_key_no)) {
 
                         // 依次创建index
-			if ((error = create_index(m_trx, m_form, m_flags,
+			if ((error = create_index(m_trx, m_form, m_flags,                                                           //依次创建其他索引
 						  m_table_name, i))) {
 				DBUG_RETURN(error);
 			}

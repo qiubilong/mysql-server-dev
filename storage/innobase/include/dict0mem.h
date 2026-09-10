@@ -68,14 +68,14 @@ struct ib_rbt_t;
 /** Type flags of an index: OR'ing of the flags is allowed to define a
 combination of types */
 /* @{ */
-#define DICT_CLUSTERED	1	/*!< clustered index; for other than
+#define DICT_CLUSTERED	1	/*!< clustered index; for other than														// 主键索引
 				auto-generated clustered indexes,
 				also DICT_UNIQUE will be set */
 #define DICT_UNIQUE	2	/*!< unique index */
 #define	DICT_IBUF	8	/*!< insert buffer tree */
 #define	DICT_CORRUPT	16	/*!< bit to store the corrupted flag
 				in SYS_INDEXES.TYPE */
-#define	DICT_FTS	32	/* FTS index; can't be combined with the
+#define	DICT_FTS	32	/* FTS index; can't be combined with the														// 全文索引
 				other flags */
 #define	DICT_SPATIAL	64	/* SPATIAL index; can't be combined with the
 				other flags */
@@ -695,10 +695,10 @@ be REC_VERSION_56_MAX_INDEX_COL_LEN (3072) bytes */
 #define DICT_MAX_FIXED_COL_LEN		DICT_ANTELOPE_MAX_INDEX_COL_LEN
 
 /** Data structure for a field in an index */
-struct dict_field_t{
+struct dict_field_t{																									// 索引字段
 	dict_field_t() { memset(this, 0, sizeof(*this)); }
 
-	dict_col_t*	col;		/*!< pointer to the table column */
+	dict_col_t*	col;		/*!< pointer to the table column */															//索引表字段
 	id_name_t	name;		/*!< name of the column */
 	unsigned	prefix_len:12;	/*!< 0 or the length of the column
 					prefix in bytes in a MySQL index of
@@ -863,10 +863,10 @@ const char innobase_index_reserve_name[] = "GEN_CLUST_INDEX";
 
 /** Data structure for an index.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_index_create(). */
-struct dict_index_t{
+struct dict_index_t{																									// 索引对象
 	index_id_t	id;	/*!< id of the index */
 	mem_heap_t*	heap;	/*!< memory heap */
-	id_name_t	name;	/*!< index name */
+	id_name_t	name;	/*!< index name */																				//索引名字
 	const char*	table_name;/*!< table name */
 	dict_table_t*	table;	/*!< back pointer to table */
 #ifndef UNIV_HOTBACKUP
@@ -911,7 +911,7 @@ struct dict_index_t{
 				which are enough to determine an index
 				entry uniquely */
 	unsigned	n_def:10;/*!< number of fields defined so far */
-	unsigned	n_fields:10;/*!< number of fields in the index */
+	unsigned	n_fields:10;/*!< number of fields in the index */														//索引字段个数，等于0时表示【隐藏主键索引】
 	unsigned	n_nullable:10;/*!< number of nullable fields */
 	unsigned	cached:1;/*!< TRUE if the index object is in the
 				dictionary cache */
@@ -935,7 +935,7 @@ struct dict_index_t{
 /** Value of dict_index_t::magic_n */
 # define DICT_INDEX_MAGIC_N	76789786
 #endif
-	dict_field_t*	fields;	/*!< array of field descriptions */
+	dict_field_t*	fields;	/*!< array of field descriptions */															//索引字段
 	st_mysql_ftparser*
 			parser;	/*!< fulltext parser plugin */
 	bool		is_ngram;
@@ -1327,7 +1327,7 @@ typedef ib_mutex_t AnalyzeIndexMutex;
 
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
-struct dict_table_t {                                                                     // ## 表定义
+struct dict_table_t {																									// ## 表定义
 
 	/** Get reference count.
 	@return current value of n_ref_count */
@@ -1340,7 +1340,7 @@ struct dict_table_t {                                                           
 	inline void release();
 
 	/** Id of the table. */
-	table_id_t				id;                                                            //## 表id
+	table_id_t				id;																							//## 表id
 
 	/** Memory heap. If you allocate from this heap after the table has
 	been created then be sure to account the allocation into
@@ -1354,7 +1354,7 @@ struct dict_table_t {                                                           
 	mem_heap_t*				heap;
 
 	/** Table name. */
-	table_name_t				name;                                                         //## 表名字
+	table_name_t				name;																					//## 表名字
 
 	/** NULL or the directory path where a TEMPORARY table that was
 	explicitly created by a user should be placed if innodb_file_per_table
@@ -1469,10 +1469,10 @@ struct dict_table_t {                                                           
 	hash_node_t				id_hash;
 
 	/** The FTS_DOC_ID_INDEX, or NULL if no fulltext indexes exist */
-	dict_index_t*				fts_doc_id_index;                                     //## 表索引
+	dict_index_t*				fts_doc_id_index;
 
 	/** List of indexes of the table. */
-	UT_LIST_BASE_NODE_T(dict_index_t)	indexes;
+	UT_LIST_BASE_NODE_T(dict_index_t)	indexes;																		 //## 表索引
 
 	/** List of foreign key constraints in the table. These refer to
 	columns in other tables. */

@@ -358,7 +358,7 @@ Builds a table definition to insert.
 @return DB_SUCCESS or error code */
 static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
-dict_build_table_def_step(																								// 执行插入表工作流 -- QUE_NODE_CREATE_TABLE -- 分配表id -- 创建表文件ibd -- 表定义插入系统表
+dict_build_table_def_step(																								// 执行插入表工作流 -- QUE_NODE_CREATE_TABLE -- 分配表id -- 创建表文件ibd + 初始化表空间头页【页号】、【表空间id】 -- 【页数】 -- 区链表 -- 段页链表
 /*======================*/
 	que_thr_t*	thr,	/*!< in: query thread */
 	tab_node_t*	node)	/*!< in: table create node */
@@ -375,7 +375,7 @@ dict_build_table_def_step(																								// 执行插入表工作流 --
 	dict_table_assign_new_id(table, trx);																				//## 分配一个新的表id -- tableId
 
         // 创建并初始化ibd文件
-	err = dict_build_tablespace_for_table(table);																		// ##  创建表idb文件 + 初始化表空间头页
+	err = dict_build_tablespace_for_table(table);																		//## 创建表idb文件 + 初始化表空间头页【页号】、【表空间id】 -- 【页数】 -- 区链表 -- 段页链表
 	if (err != DB_SUCCESS) {
 		return(err);
 	}
@@ -462,7 +462,7 @@ dict_build_tablespace(
 @param[in,out]	table	Table to build in its own tablespace.
 @return DB_SUCCESS or error code */
 dberr_t
-dict_build_tablespace_for_table(																						// 创建表idb文件 + 初始化表空间头页
+dict_build_tablespace_for_table(																						// 创建表idb文件 + 初始化表空间头页【页号】、【表空间id】 -- 【页数】 -- 区链表 -- 段页链表
 	dict_table_t*	table)
 {
 	dberr_t		err	= DB_SUCCESS;
@@ -542,7 +542,7 @@ dict_build_tablespace_for_table(																						// 创建表idb文件 + �
 		the table we create here. */
                 // 创建ibd文件
 		err = fil_ibd_create(
-			space, table->name.m_name, filepath, fsp_flags,                                                         // ##  创建表idb文件 -- 首先初始化4页
+			space, table->name.m_name, filepath, fsp_flags,                                                         // ##  创建表idb文件 -- 初始化前4页，FIL_IBD_FILE_INITIAL_SIZE=4
 			FIL_IBD_FILE_INITIAL_SIZE);
 
 		ut_free(filepath);
@@ -556,7 +556,7 @@ dict_build_tablespace_for_table(																						// 创建表idb文件 + �
 		mtr.set_named_space(table->space);
 		dict_disable_redo_if_temporary(table, &mtr);
 
-		bool ret = fsp_header_init(table->space,																		// ##  初始化表空间头页
+		bool ret = fsp_header_init(table->space,																		// ##  初始化表空间头页 =【页号】、【表空间id】 -- 【页数】 -- 区链表 -- 段页链表
 					   FIL_IBD_FILE_INITIAL_SIZE,
 					   &mtr);
 
@@ -867,7 +867,7 @@ Builds an index definition row to insert.
 @return DB_SUCCESS or error code */
 static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
-dict_build_index_def_step(
+dict_build_index_def_step(																								//设置索引id，索引定义插入系统表
 /*======================*/
 	que_thr_t*	thr,	/*!< in: query thread */
 	ind_node_t*	node)	/*!< in: index create node */
@@ -901,7 +901,7 @@ dict_build_index_def_step(
 	      || dict_index_is_clust(index));
 
         // 获取新的index_id
-	dict_hdr_get_new_id(NULL, &index->id, NULL, table, false);
+	dict_hdr_get_new_id(NULL, &index->id, NULL, table, false);							//获取索引id
 
 	/* Inherit the space id from the table; we store all indexes of a
 	table in the same tablespace */
@@ -909,7 +909,7 @@ dict_build_index_def_step(
 	index->space = table->space;
 	node->page_no = FIL_NULL;
         // 将dict_index_t对象复制为row对象
-	row = dict_create_sys_indexes_tuple(index, node->heap);
+	row = dict_create_sys_indexes_tuple(index, node->heap);                                                             //索引定义插入系统表
 	node->ind_row = row;
 
         // 将row对象插入到sys_indexes中
@@ -988,7 +988,7 @@ Creates an index tree for the index if it is not a member of a cluster.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
-dict_create_index_tree_step(
+dict_create_index_tree_step(																							//### 创建b+树索引
 /*========================*/
 	ind_node_t*	node)	/*!< in: index create node */
 {
@@ -1023,7 +1023,7 @@ dict_create_index_tree_step(
 	}
 
 	search_tuple = dict_create_search_tuple(node->ind_row, node->heap);
-        // 获取sys_indexes表的聚集索引，并找到当前索引对应的记录，修改该记录的中的page_no字段
+        /* 获取sys_indexes表的聚集索引，并找到当前索引对应的记录，修改该记录的中的page_no字段 */
 	btr_pcur_open(UT_LIST_GET_FIRST(sys_indexes->indexes),
 		      search_tuple, PAGE_CUR_L, BTR_MODIFY_LEAF,
 		      &pcur, &mtr);
@@ -1037,7 +1037,7 @@ dict_create_index_tree_step(
 		node->page_no = FIL_NULL;
 	} else {
                 // 创建B+树，返回B+树根页对应的页号
-		node->page_no = btr_create(
+		node->page_no = btr_create(																						//### 创建b+树索引
 			index->type, index->space,
 			dict_table_page_size(index->table),
 			index->id, index, NULL, &mtr);
@@ -1052,7 +1052,7 @@ dict_create_index_tree_step(
 	}
 
 	page_rec_write_field(
-		btr_pcur_get_rec(&pcur), DICT_FLD__SYS_INDEXES__PAGE_NO,
+		btr_pcur_get_rec(&pcur), DICT_FLD__SYS_INDEXES__PAGE_NO,                                                       //记录系统表中【索引】的根页
 		node->page_no, &mtr);
 
 	btr_pcur_close(&pcur);
@@ -1472,7 +1472,7 @@ dict_create_table_step(                                                         
 
 		/* DO THE CHECKS OF THE CONSISTENCY CONSTRAINTS HERE */
 
-		err = dict_build_table_def_step(thr, node);																		// 执行插入表工作流 -- QUE_NODE_CREATE_TABLE-- 分配表id -- 创建表文件ibd -- 表定义插入系统表
+		err = dict_build_table_def_step(thr, node);																		// 执行【插入表】工作流 -- QUE_NODE_CREATE_TABLE-- 分配表id -- 创建表文件ibd -- 表定义插入系统表
 
 		if (err != DB_SUCCESS) {
 
@@ -1552,7 +1552,7 @@ dict_create_table_step(                                                         
 	if (node->state == TABLE_ADD_TO_CACHE) {
 		DBUG_EXECUTE_IF("ib_ddl_crash_during_create", DBUG_SUICIDE(););
 
-		dict_table_add_to_cache(node->table, TRUE, node->heap);
+		dict_table_add_to_cache(node->table, TRUE, node->heap);                                             //表id、表名hash缓存
 
 		err = DB_SUCCESS;
 	}
@@ -1582,7 +1582,7 @@ Creates an index. This is a high-level function used in SQL execution
 graphs.
 @return query thread to run next or NULL */
 que_thr_t*
-dict_create_index_step(
+dict_create_index_step(																									// 执行【保存索引】工作流 -- 【索引】插入系统表 -- 构建B+树
 /*===================*/
 	que_thr_t*	thr)	/*!< in: query thread */
 {
@@ -1607,14 +1607,14 @@ dict_create_index_step(
 
                 /* DO THE CHECKS OF THE CONSISTENCY CONSTRAINTS HERE */
                 // 利用dict_index_t来构建dtuple_t，用来插入到sys_indexes中
-		err = dict_build_index_def_step(thr, node);
+		err = dict_build_index_def_step(thr, node);																		//设置索引id，索引定义插入系统表
 
 		if (err != DB_SUCCESS) {
 
 			goto function_exit;
 		}
 
-		node->state = INDEX_BUILD_FIELD_DEF;
+		node->state = INDEX_BUILD_FIELD_DEF;                                                                            // 执行完INDEX_BUILD_INDEX_DEF，执行INDEX_BUILD_FIELD_DEF
 		node->field_no = 0;
 
 		thr->run_node = node->ind_def;
@@ -1659,7 +1659,7 @@ dict_create_index_step(
 
 	if (node->state == INDEX_CREATE_INDEX_TREE) {
                 // 创建索引B+树
-		err = dict_create_index_tree_step(node);
+		err = dict_create_index_tree_step(node);																		//### 创建b+树索引
 
 		DBUG_EXECUTE_IF("ib_dict_create_index_tree_fail",
 				err = DB_OUT_OF_MEMORY;);

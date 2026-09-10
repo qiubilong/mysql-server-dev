@@ -70,7 +70,7 @@ descriptor page, but used only in the first. */
 					which we know that the modifications
 					in the database have been flushed to
 					the file space; not used now */
-#define	FSP_SIZE		8	/* Current size of the space in
+#define	FSP_SIZE		8	/* Current size of the space in                                                             //表空间当前页数
 					pages */
 #define	FSP_FREE_LIMIT		12	/* Minimum page number for which the
 					free list has not been initialized:
@@ -100,7 +100,7 @@ descriptor page, but used only in the first. */
 					/* list of pages containing segment
 					headers, where all the segment inode
 					slots are reserved */
-#define FSP_SEG_INODES_FREE	(32 + 4 * FLST_BASE_NODE_SIZE)
+#define FSP_SEG_INODES_FREE	(32 + 4 * FLST_BASE_NODE_SIZE)																//表空间 -- 【有空闲页】iNode段对象页
 					/* list of pages containing segment
 					headers, where not all the segment
 					header slots are reserved */
@@ -127,7 +127,7 @@ bufferfixed file pages. */
 
 typedef	byte	fseg_inode_t;
 
-#define FSEG_INODE_PAGE_NODE	FSEG_PAGE_DATA
+#define FSEG_INODE_PAGE_NODE	FSEG_PAGE_DATA																			//inode段对象页
 					/* the list node for linking
 					segment inode pages */
 
