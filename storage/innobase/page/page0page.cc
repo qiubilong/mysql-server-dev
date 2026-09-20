@@ -308,7 +308,7 @@ page_create_write_log(
 #endif /* !UNIV_HOTBACKUP */
 
 /** The page infimum and supremum of an empty page in ROW_FORMAT=REDUNDANT */
-static const byte infimum_supremum_redundant[] = { /* 页最小记录、最大记录 定义 */                                           //最小记录
+static const byte infimum_supremum_redundant[] = { /* 页最小记录、最大记录 定义 */
 	/* the infimum record */
 	0x08/*end offset*/,
 	0x01/*n_owned*/,
@@ -326,7 +326,7 @@ static const byte infimum_supremum_redundant[] = { /* 页最小记录、最大�
 };
 
 /** The page infimum and supremum of an empty page in ROW_FORMAT=COMPACT */
-static const byte infimum_supremum_compact[] = {																		//最大记录
+static const byte infimum_supremum_compact[] = {																		//最小记录，最大记录
 	/* the infimum record */
 	0x01/*n_owned=1*/,
 	0x00, 0x02/* heap_no=0, REC_STATUS_INFIMUM */,

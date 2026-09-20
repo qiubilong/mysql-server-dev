@@ -1380,18 +1380,18 @@ tab_create_graph_create(                                                        
 	node = static_cast<tab_node_t*>(
 		mem_heap_alloc(heap, sizeof(tab_node_t)));
 
-	node->common.type = QUE_NODE_CREATE_TABLE;
+	node->common.type = QUE_NODE_CREATE_TABLE;                                                                          //创建表工作流
 
 	node->table = table;
 
 	node->state = TABLE_BUILD_TABLE_DEF;
 	node->heap = mem_heap_create(256);
 
-	node->tab_def = ins_node_create(INS_DIRECT, dict_sys->sys_tables,                                            // 将表table插入【系统表】sys_tables
+	node->tab_def = ins_node_create(INS_DIRECT, dict_sys->sys_tables,
 					heap);
 	node->tab_def->common.parent = node;
 
-	node->col_def = ins_node_create(INS_DIRECT, dict_sys->sys_columns,                                           // 将表table字段插入【系统表】sys_columns
+	node->col_def = ins_node_create(INS_DIRECT, dict_sys->sys_columns,
 					heap);
 	node->col_def->common.parent = node;
 

@@ -1018,7 +1018,7 @@ btr_create(																											    //### 创建b+树索引
                 // 会生成一个新的Inode
                 // 会把Inode对象存在Inode页中，具体是第几个Inode对象等信息存在新Page的PAGE_BTR_SEG_TOP区域
                 // 新Page就是索引B+树的根页
-		block = fseg_create(space, 0,                                                                                   //### 1、创建b+树索引，首先创建【非叶子节点】段
+		block = fseg_create(space, 0,                                                                                   //### 1、创建b+树索引，首先创建【非叶子节点】段，得到索引根页
 				    PAGE_HEADER + PAGE_BTR_SEG_TOP, mtr);
 	}
 
@@ -1095,7 +1095,7 @@ btr_create(																											    //### 创建b+树索引
 	} else {
 		if (index != NULL) {
                         // 将空闲Page初始化或索引页
-			page = page_create(block, mtr,																				// 3、初始化索引页 - index页 -- 存储最小记录，最大记录
+			page = page_create(block, mtr,																				// 3、初始化索引根页 - index页 -- 存储最小记录，最大记录
 					   dict_table_is_comp(index->table),
 					   dict_index_is_spatial(index));
 		} else {

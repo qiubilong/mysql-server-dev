@@ -498,7 +498,7 @@ struct que_fork_t{
 #define QUE_NODE_COMMIT		11
 #define QUE_NODE_ROLLBACK	12
 #define QUE_NODE_PURGE		13
-#define QUE_NODE_CREATE_TABLE	14
+#define QUE_NODE_CREATE_TABLE	14                                                                                      // 创建表工作流
 #define QUE_NODE_CREATE_INDEX	15
 #define QUE_NODE_SYMBOL		16
 #define QUE_NODE_RES_WORD	17

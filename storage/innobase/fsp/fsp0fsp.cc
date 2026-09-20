@@ -1990,7 +1990,7 @@ fsp_alloc_free_page(                                                            
 	/* Get the hinted descriptor */
 	descr = xdes_get_descriptor_with_space_hdr(header, space, hint, mtr);                                          // 获取区描述对象
 
-	if (descr && (xdes_get_state(descr, mtr) == XDES_FREE_FRAG)) {                                                      //可用碎片区
+	if (descr && (xdes_get_state(descr, mtr) == XDES_FREE_FRAG)) {                                                      //表空间可用碎片区
 		/* Ok, we can take this extent */
 	} else {
 		/* Else take the first extent in free_frag list */
@@ -2330,7 +2330,7 @@ fsp_alloc_seg_inode_page(																								// 申请一个【空闲】段�
 		inode = fsp_seg_inode_page_get_nth_inode(
 			page, i, page_size, mtr);
 
-		mlog_write_ull(inode + FSEG_ID, 0, mtr);																	// 将inode段对象页的【inode段对象初始化】
+		mlog_write_ull(inode + FSEG_ID, 0, mtr);																	// 初始化inode段页的【inode段对象的段id都是0】
 	}
 
         // 把这个page添加到SEG_INODES_FREE链表中去
@@ -2649,7 +2649,7 @@ Creates a new segment.
 @return the block where the segment header is placed, x-latched, NULL
 if could not create segment because of lack of space */
 buf_block_t*
-fseg_create_general(																								    //### 1、创建b+树索引，创建【叶子节点、非叶子节点】段
+fseg_create_general(																								    //### 1、创建b+树索引，创建【叶子节点、非叶子节点】段，返回索引根页
 /*================*/
 	ulint	space_id,/*!< in: space id */
 	ulint	page,	/*!< in: page where the segment header is placed: if
@@ -2722,7 +2722,7 @@ fseg_create_general(																								    //### 1、创建b+树索引，�
 
         // 从当前表空间中分配一个空闲的inode对象，一个inode对象对应一个段，inode对象中记录了该对段对应了哪些区和哪些碎片页
         // 得到一个空闲的inode对象后，就需要向inode中写入信息了
-	inode = fsp_alloc_seg_inode(space_header, mtr);																		// ### 分配一个inode段对象，每个段对应一个INODE，一个索引两个段
+	inode = fsp_alloc_seg_inode(space_header, mtr);																		// ### 分配一个inode段对象，每个段对应一个INODE，一个索引两个段。没有可用段页时，先申请段页，再返回段对象
 
 	if (inode == NULL) {
 
@@ -2751,9 +2751,9 @@ fseg_create_general(																								    //### 1、创建b+树索引，�
 		fseg_set_nth_frag_page_no(inode, i, FIL_NULL, mtr);
 	}
 
-        // 分配一个新page
+        // 分配一个新page，作为索引根页
 	if (page == 0) {
-		block = fseg_alloc_free_page_low(space, page_size,																//## 向【段】申请一个空闲页 -- 精准命中（段区、表空间区）> 就近取用（同区空闲）> 内部消化（段碎片区、空闲区）  > 外部获取(独立页、新区)
+		block = fseg_alloc_free_page_low(space, page_size,																//## 分配【段对象】后申请根页，向【段】申请一个空闲页作为根页 -- 精准命中（段区、表空间区）> 就近取用（同区空闲）> 内部消化（段碎片区、空闲区）  > 外部获取(独立页、新区)
 						 inode, 0, FSP_UP, RW_SX_LATCH,
 						 mtr, mtr
 #ifdef UNIV_DEBUG
@@ -2781,7 +2781,7 @@ fseg_create_general(																								    //### 1、创建b+树索引，�
 
         // 写入段头的各个属性，段头其实指向的就是段对应的inode对象
         // inode在INODE页中的偏移量，相当于第几个inode
-	mlog_write_ulint(header + FSEG_HDR_OFFSET,
+	mlog_write_ulint(header + FSEG_HDR_OFFSET,                                                                         //【索引段】信息写入【索引根页】
 			 page_offset(inode), MLOG_2BYTES, mtr);
 
         // inode在表空间的哪一页（INODE也，里面存的都是inode）
@@ -3104,7 +3104,7 @@ take_hinted_page:
 		we would have got (descr == NULL) above and reset the hint. */
 		goto got_hinted_page;
 		/*-----------------------------------------------------------*/
-	} else if (xdes_get_state(descr, mtr) == XDES_FREE																	//2、精准命中 --【区】是空闲的，属于表空间，段使用>=32页，将此【区】移除到当前【段】的空闲区链表   --- 预分配或者删除回收
+	} else if (xdes_get_state(descr, mtr) == XDES_FREE																	//2、精准命中 --【区】是空闲的，属于表空间，段使用>=32页，将此【区】移除到当前【段】的空闲区链表 --- 预分配或者删除回收
 		   && reserved - used < reserved / FSEG_FILLFACTOR
 		   && used >= FSEG_FRAG_LIMIT) { //FSEG_FRAG_LIMIT=32
                 /*/ 如果找到的区是空闲的，但不属于当前段，并且段内剩余页面小于1/8了，并且段已经使用的页面超过32页了
@@ -3114,7 +3114,7 @@ take_hinted_page:
 		the hinted page
 		===============*/
                 // 再次用hint去找到对应的区，正常来说应该等于descr，这一步会把这个区从表空间的FSP_FREE移除掉
-		ret_descr = fsp_alloc_free_extent(																				//             表空间 -- 申请【空闲区】 ----先看‘指定位置’能不能用，能用就用；如果不能用，就老老实实去全局池子里拿一个，如果池子空了，就现造一个放进池子再拿
+		ret_descr = fsp_alloc_free_extent(																				//表空间 -- 申请【空闲区】 ----先看‘指定位置’能不能用，能用就用；如果不能用，就老老实实去全局池子里拿一个，如果池子空了，就现造一个放进池子再拿
 			space_id, page_size, hint, mtr);
 
 		ut_a(ret_descr == descr);
@@ -3194,10 +3194,10 @@ take_hinted_page:
 					0, mtr);
 		ut_ad(!has_done_reservation || ret_page != FIL_NULL);
 		/*-----------------------------------------------------------*/
-	} else if (used < FSEG_FRAG_LIMIT) {                                                                                // 6、当前【段】未满32页，优先使用空闲独立页
+	} else if (used < FSEG_FRAG_LIMIT) {         //FSEG_FRAG_LIMIT=32
 		/* 6. We allocate an individual page from the space
 		===================================================*/
-		buf_block_t* block = fsp_alloc_free_page(
+		buf_block_t* block = fsp_alloc_free_page(                                                                       // 6、当前【段】未满32页，优先使用空闲独立页
 			space_id, page_size, hint, rw_latch, mtr, init_mtr);
 
 		ut_ad(!has_done_reservation || block != NULL);
