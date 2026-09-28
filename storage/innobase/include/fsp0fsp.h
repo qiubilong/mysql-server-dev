@@ -86,8 +86,8 @@ descriptor page, but used only in the first. */
 					dict_table_t::flags */
 #define	FSP_FRAG_N_USED		20	/* number of used pages in the
 					FSP_FREE_FRAG list */
-#define	FSP_FREE		24	/* list of free extents */                                                                  //表空间 -- 空闲区
-#define	FSP_FREE_FRAG		(24 + FLST_BASE_NODE_SIZE)                                                                  //表空间 -- 碎片区 -- 有空闲页
+#define	FSP_FREE		24	/* list of free extents */                                                                  //表空间 -- 空闲区 -- 新分配的区，非区组所在区
+#define	FSP_FREE_FRAG		(24 + FLST_BASE_NODE_SIZE)                                                                  //表空间 -- 碎片区 -- 有空闲页 -- 表空间头页所在区就是碎片区
 					/* list of partially free extents not
 					belonging to any segment */
 #define	FSP_FULL_FRAG		(24 + 2 * FLST_BASE_NODE_SIZE)                                                              //表空间 -- 用满区

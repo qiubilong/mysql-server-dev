@@ -462,7 +462,7 @@ dict_build_tablespace(
 @param[in,out]	table	Table to build in its own tablespace.
 @return DB_SUCCESS or error code */
 dberr_t
-dict_build_tablespace_for_table(																						// 创建表idb文件 + 初始化表空间头页【页号】、【表空间id】 -- 【页数】 -- 区链表 -- 段页链表
+dict_build_tablespace_for_table(																						// 创建表idb文件 + 初始化表空间头页【区对象】【页号】、【表空间id】 -- 【页数】 -- 区链表 -- 段页链表
 	dict_table_t*	table)
 {
 	dberr_t		err	= DB_SUCCESS;
@@ -556,7 +556,7 @@ dict_build_tablespace_for_table(																						// 创建表idb文件 + �
 		mtr.set_named_space(table->space);
 		dict_disable_redo_if_temporary(table, &mtr);
 
-		bool ret = fsp_header_init(table->space,																		// ##  初始化表空间头页 =【页号】、【表空间id】 -- 【页数】 -- 区链表 -- 段页链表
+		bool ret = fsp_header_init(table->space,																		// ##  初始化表空间头页 【区对象】【页号】、【表空间id】 -- 【页数】 -- 区链表 -- 段页链表
 					   FIL_IBD_FILE_INITIAL_SIZE,
 					   &mtr);
 

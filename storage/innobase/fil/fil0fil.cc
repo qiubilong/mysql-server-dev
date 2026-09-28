@@ -5106,7 +5106,7 @@ retry:
 		ut_ad(len > 0);
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-		int     ret = posix_fallocate(node->handle.m_file, node_start, len);
+		int     ret = posix_fallocate(node->handle.m_file, node_start, len);                                       //分配空间
 
 		DBUG_EXECUTE_IF("ib_posix_fallocate_fail_eintr",
 				ret = EINTR;);
@@ -5152,8 +5152,8 @@ retry:
 
 			read_only_mode = (space->purpose != FIL_TYPE_TEMPORARY
 					  ? false : srv_read_only_mode);
-                        // 写文件
-			err = fil_write_zeros(
+
+			err = fil_write_zeros(                                                                                      // 写文件
 				node, page_size, node_start,
 				static_cast<ulint>(len), read_only_mode);
 

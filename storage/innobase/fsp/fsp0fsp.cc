@@ -541,7 +541,7 @@ xdes_get_state(
 Inits an extent descriptor to the free and clean state. */
 UNIV_INLINE
 void
-xdes_init(
+xdes_init(                                                                                                              //区描述对象初始化
 /*======*/
 	xdes_t*	descr,	/*!< in: descriptor */
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
@@ -574,7 +574,7 @@ the same as the tablespace header
 exist in the space or if the offset exceeds free limit */
 UNIV_INLINE MY_ATTRIBUTE((warn_unused_result))
 xdes_t*
-xdes_get_descriptor_with_space_hdr(
+xdes_get_descriptor_with_space_hdr(                                                                                     // 定位区描述对象
 	fsp_header_t*	sp_header,
 	ulint		space,
 	ulint		offset,
@@ -1071,7 +1071,7 @@ insert buffer tree root if space == 0.
 @param[in,out]	mtr		min-transaction
 @return	true on success, otherwise false. */
 bool
-fsp_header_init(																										// ##  初始化表空间头页 -- 【页号】、【表空间id】 -- 【页数】 -- 区链表 -- 段链表
+fsp_header_init(																										// ##  初始化表空间头页 -- 【区对象】、【表空间id】 -- 【页数】 -- 区链表 -- 段链表
 	ulint	space_id,
 	ulint	size,
 	mtr_t*	mtr)
@@ -1087,7 +1087,7 @@ fsp_header_init(																										// ##  初始化表空间头页 -- 【
 	const page_id_t		page_id(space_id, 0);//第0页是【表空间头页】
 	const page_size_t	page_size(space->flags);
 
-	block = buf_page_create(page_id, page_size, mtr);                                                                   // ## 【表空间头页】加载到内存
+	block = buf_page_create(page_id, page_size, mtr);                                                                   //【表空间头页】加载到内存
 	buf_page_get(page_id, page_size, RW_SX_LATCH, mtr);
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
@@ -1097,13 +1097,13 @@ fsp_header_init(																										// ##  初始化表空间头页 -- 【
 
 	/* The prior contents of the file page should be ignored */
 
-	fsp_init_file_page(block, mtr);																					    // 【表空间头页】初始化 -- 写入【页号】、【表空间id】
+	fsp_init_file_page(block, mtr);
 	page = buf_block_get_frame(block);
 
 	mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_TYPE_FSP_HDR,
 			 MLOG_2BYTES, mtr);
 
-	header = FSP_HEADER_OFFSET + page;																					//设置表空间页【头】信息
+	header = FSP_HEADER_OFFSET + page;																					//设置表空间页【头】信息 -- 写入【页数】、【表空间id】
 
 	mlog_write_ulint(header + FSP_SPACE_ID, space_id, MLOG_4BYTES, mtr);
 	mlog_write_ulint(header + FSP_NOT_USED, 0, MLOG_4BYTES, mtr);
@@ -1118,11 +1118,11 @@ fsp_header_init(																										// ##  初始化表空间头页 -- 【
 	flst_init(header + FSP_FREE_FRAG, mtr);
 	flst_init(header + FSP_FULL_FRAG, mtr);
 	flst_init(header + FSP_SEG_INODES_FULL, mtr);
-	flst_init(header + FSP_SEG_INODES_FREE, mtr);                                                                   // 初始化表空间 -- 段链表【空闲碎片页】【满页】
+	flst_init(header + FSP_SEG_INODES_FREE, mtr);                                                                   // 初始化表空间 -- 段页链表【空闲碎片页】【满页】
 
 	mlog_write_ull(header + FSP_SEG_ID, 1, mtr);
 
-	fsp_fill_free_list(!is_system_tablespace(space_id),
+	fsp_fill_free_list(!is_system_tablespace(space_id),                                                                 //#### 初始化表空间头页  -- 创建区描述对象
 			   space, header, mtr);
 
 	/* For encryption tablespace, we need to save the encryption
@@ -1426,7 +1426,7 @@ data file.
 @return true if success */
 static UNIV_COLD MY_ATTRIBUTE((warn_unused_result))
 bool
-fsp_try_extend_data_file_with_pages(
+fsp_try_extend_data_file_with_pages(                                                                                    //如果申请的空闲页在第一个区，则idb文件新分配1页空间，因为创建表时仅分配了4页
 	fil_space_t*	space,
 	ulint		page_no,
 	fsp_header_t*	header,
@@ -1443,7 +1443,7 @@ fsp_try_extend_data_file_with_pages(
 
 	ut_a(page_no >= size);
 
-	success = fil_space_extend(space, page_no + 1);
+	success = fil_space_extend(space, page_no + 1);                                                                 //idb文件新分配1页空间
 	/* The size may be less than we wanted if we ran out of disk space. */
 	mlog_write_ulint(header + FSP_SIZE, space->size, MLOG_4BYTES, mtr);
 	space->size_in_header = space->size;
@@ -1458,7 +1458,7 @@ fsp_try_extend_data_file_with_pages(
 @return whether the tablespace was extended */
 static UNIV_COLD
 ulint
-fsp_try_extend_data_file(
+fsp_try_extend_data_file(                                                                                               // ### 申请新区，拓展表空间文件
 	fil_space_t*	space,
 	fsp_header_t*	header,
 	mtr_t*		mtr)
@@ -1531,7 +1531,7 @@ fsp_try_extend_data_file(
 			size = extent_pages;
 		}
                 // 需要增加多少页，size表示当前表空间中有多少页
-		size_increase = fsp_get_pages_to_extend_ibd(page_size, size);
+		size_increase = fsp_get_pages_to_extend_ibd(page_size, size);                                                   //计算增加多少页，超过32区就分区4区
 	}
 
 	if (size_increase == 0) {
@@ -1539,7 +1539,7 @@ fsp_try_extend_data_file(
 		return(false);
 	}
         // 扩充表空间内容，最终表空间有size + size_increase页
-	if (!fil_space_extend(space, size + size_increase)) {
+	if (!fil_space_extend(space, size + size_increase)) {                                                               // ### 申请新区，拓展表空间文件
 		return(false);
 	}
 
@@ -1568,7 +1568,7 @@ on one extent descriptor page. See xdes_calc_descriptor_page().
 @param[in]	size		current number of pages in the datafile
 @return number of pages to extend the file. */
 ulint
-fsp_get_pages_to_extend_ibd(
+fsp_get_pages_to_extend_ibd(                                                                                            // 如果当前表空间中的页大于等于32 * 区（64页），那么增加FSP_FREE_ADD个区，也就是4个区
 	const page_size_t&	page_size,
 	ulint			size)
 {
@@ -1582,12 +1582,12 @@ fsp_get_pages_to_extend_ibd(
 
 	/* The threshold is set at 32MiB except when the physical page
 	size is small enough that it must be done sooner. */
-	threshold = ut_min(32 * extent_size, page_size.physical());
+	threshold = ut_min(32 * extent_size, page_size.physical());                                                     // 如果当前表空间中的页大于等于32 * 区（64页），那么增加FSP_FREE_ADD个区，也就是4个区
         // 如果当前表空间中的页小于32 * 64页，那么增加一个区
 	if (size < threshold) {
 		size_increase = extent_size;
 	} else {
-                // 如果当前表空间中的页大于等于32 * 64页，那么增加FSP_FREE_ADD个区，也就是4个区
+
 		/* Below in fsp_fill_free_list() we assume
 		that we add at most FSP_FREE_ADD extents at
 		a time */
@@ -1608,7 +1608,7 @@ then we will not allocate more extents
 @param[in,out]	mtr		mini-transaction */
 static
 void
-fsp_fill_free_list(																										//表空间头页 -- 【空闲区】链表 -- 分配【空闲区】 -- -创建区描述对象-
+fsp_fill_free_list(																										//表空间头页初始化-- 创建区描述对象 //////  表空间分配【空闲区】，拓展ibd文件
 	bool		init_space,
 	fil_space_t*	space,
 	fsp_header_t*	header,
@@ -1644,7 +1644,7 @@ fsp_fill_free_list(																										//表空间头页 -- 【空闲区�
 		    || (space->id == srv_tmp_space.space_id()
 			&& srv_tmp_space.can_auto_extend_last_file())) {
 
-                        fsp_try_extend_data_file(space, header, mtr);
+                        fsp_try_extend_data_file(space, header, mtr);                                                   // ### 申请新区，拓展表空间文件
 			size = space->size_in_header;
 		}
 	}
@@ -1829,7 +1829,7 @@ fsp_alloc_free_extent(																									// 表空间 -- 申请【空闲�
                 // 表空间中没有空闲区了
 		if (fil_addr_is_null(first)) {
                         // 创建一个新区并放到FSP_FREE链表中
-			fsp_fill_free_list(false, space, header, mtr);
+			fsp_fill_free_list(false, space, header, mtr);                                                      //#####  表空间分配【空闲区】，拓展ibd文件
 
 			first = flst_get_first(header + FSP_FREE, mtr);
 		}
@@ -1853,7 +1853,7 @@ fsp_alloc_free_extent(																									// 表空间 -- 申请【空闲�
 Allocates a single free page from a space. */
 static
 void
-fsp_alloc_from_free_frag(
+fsp_alloc_from_free_frag(                                                                                               // 更新区的状态
 /*=====================*/
 	fsp_header_t*	header,	/*!< in/out: tablespace header */
 	xdes_t*		descr,	/*!< in/out: extent descriptor */
@@ -1864,18 +1864,18 @@ fsp_alloc_from_free_frag(
 
 	ut_ad(xdes_get_state(descr, mtr) == XDES_FREE_FRAG);
 	ut_a(xdes_mtr_get_bit(descr, XDES_FREE_BIT, bit, mtr));
-	xdes_set_bit(descr, XDES_FREE_BIT, bit, FALSE, mtr);
+	xdes_set_bit(descr, XDES_FREE_BIT, bit, FALSE, mtr);                                                     // 设置此区此页为【非空闲】
 
 	/* Update the FRAG_N_USED field */
 	frag_n_used = mach_read_from_4(header + FSP_FRAG_N_USED);
 	frag_n_used++;
 	mlog_write_ulint(header + FSP_FRAG_N_USED, frag_n_used, MLOG_4BYTES,
 			 mtr);
-	if (xdes_is_full(descr, mtr)) {
+	if (xdes_is_full(descr, mtr)) {                                                                                     // 此区用满
 		/* The fragment is full: move it to another list */
 		flst_remove(header + FSP_FREE_FRAG, descr + XDES_FLST_NODE,
 			    mtr);
-		xdes_set_state(descr, XDES_FULL_FRAG, mtr);
+		xdes_set_state(descr, XDES_FULL_FRAG, mtr);                                                                 // 设置区状态为【已用完】
 
 		flst_add_last(header + FSP_FULL_FRAG, descr + XDES_FLST_NODE,
 			      mtr);
@@ -1990,11 +1990,11 @@ fsp_alloc_free_page(                                                            
 	/* Get the hinted descriptor */
 	descr = xdes_get_descriptor_with_space_hdr(header, space, hint, mtr);                                          // 获取区描述对象
 
-	if (descr && (xdes_get_state(descr, mtr) == XDES_FREE_FRAG)) {                                                      //表空间可用碎片区
+	if (descr && (xdes_get_state(descr, mtr) == XDES_FREE_FRAG)) {                                                      //表空间可用碎片区，第0区默认区就是这样
 		/* Ok, we can take this extent */
 	} else {
 		/* Else take the first extent in free_frag list */
-		first = flst_get_first(header + FSP_FREE_FRAG, mtr);
+		first = flst_get_first(header + FSP_FREE_FRAG, mtr);                                                        // 第0区就是碎片区，用完再申请新区
 
 		if (fil_addr_is_null(first)) {
 			/* There are no partially full fragments: allocate
@@ -2028,7 +2028,7 @@ fsp_alloc_free_page(                                                            
 	/* Now we have in descr an extent with at least one free page. Look
 	for a free page in the extent. */
 
-	free = xdes_find_bit(descr, XDES_FREE_BIT, TRUE,                                                                 //区中找到一个空闲页，一个区64页，使用bitmap标记空闲
+	free = xdes_find_bit(descr, XDES_FREE_BIT, TRUE,                                                                 //##### 区中找到一个空闲页，一个区64页，使用bitmap标记空闲
 			     hint % FSP_EXTENT_SIZE, mtr);
 	if (free == ULINT_UNDEFINED) {
 
@@ -2060,14 +2060,14 @@ fsp_alloc_free_page(                                                            
 
 		fil_space_t*	fspace = fil_space_get(space);
 
-		if (!fsp_try_extend_data_file_with_pages(fspace, page_no,
+		if (!fsp_try_extend_data_file_with_pages(fspace, page_no,                                                       //#### 如果申请的空闲页在第0个区，则idb文件新分配1页空间，因为创建表时仅分配了4页
 							 header, mtr)) {
 			/* No disk space left */
 			return(NULL);
 		}
 	}
 
-	fsp_alloc_from_free_frag(header, descr, free, mtr);
+	fsp_alloc_from_free_frag(header, descr, free, mtr);                                                                 //### 区空间用完，就设置状态为 XDES_FULL_FRAG
 	return(fsp_page_create(page_id_t(space, page_no), page_size,
 			       rw_latch, mtr, init_mtr));
 }
@@ -2388,7 +2388,7 @@ fsp_alloc_seg_inode(																									// ### 分配一个inode段对象	,
 	page = buf_block_get_frame(block);																					// 加载 inode段页
 
         // 从page中获取可用的inode的下标
-	n = fsp_seg_inode_page_find_free(page, 0, page_size, mtr);														// 在inode段页中找到一个可用inode节点
+	n = fsp_seg_inode_page_find_free(page, 0, page_size, mtr);														//##### 在inode段页中找到一个可用inode节点
 
 	ut_a(n != ULINT_UNDEFINED);
 
@@ -2741,7 +2741,7 @@ fseg_create_general(																								    //### 1、创建b+树索引，�
         // 初始化inode的其他属性
 	mlog_write_ulint(inode + FSEG_NOT_FULL_N_USED, 0, MLOG_4BYTES, mtr);
 
-	flst_init(inode + FSEG_FREE, mtr);                                                                             //【段】 --链表 -- 空闲【区】
+	flst_init(inode + FSEG_FREE, mtr);                                                                             //【段】 --区链表 -- 空闲【区】
 	flst_init(inode + FSEG_NOT_FULL, mtr);
 	flst_init(inode + FSEG_FULL, mtr);
 
@@ -2966,7 +2966,7 @@ not yet taken off it!
 @retval block	(not allocated or initialized) otherwise */
 static
 xdes_t*
-fseg_alloc_free_extent(
+fseg_alloc_free_extent(                                                                                                 // 【段】里分配新的区
 	fseg_inode_t*		inode,
 	ulint			space,
 	const page_size_t&	page_size,
@@ -2980,7 +2980,7 @@ fseg_alloc_free_extent(
 	ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
 	ut_d(fsp_space_modify_check(space, mtr));
 
-	if (flst_get_len(inode + FSEG_FREE) > 0) {
+	if (flst_get_len(inode + FSEG_FREE) > 0) {                                                                      // 【段】有空闲区
 		/* Segment free list is not empty, allocate from it */
 
 		first = flst_get_first(inode + FSEG_FREE, mtr);
@@ -2988,7 +2988,7 @@ fseg_alloc_free_extent(
 		descr = xdes_lst_get_descriptor(space, page_size, first, mtr);
 	} else {
 		/* Segment free list was empty, allocate from space */
-		descr = fsp_alloc_free_extent(space, page_size, 0, mtr);
+		descr = fsp_alloc_free_extent(space, page_size, 0, mtr);                                                    //【段】无空闲区，从表空间中申请一个空闲区
 
 		if (descr == NULL) {
 

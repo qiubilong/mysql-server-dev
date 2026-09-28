@@ -1013,7 +1013,7 @@ btr_create(																											    //### 创建b+树索引
 		ut_ad(block->page.id.page_no() == IBUF_TREE_ROOT_PAGE_NO);
 	} else {
 
-                // 创建PAGE_BTR_SEG_TOP段（非叶子节点段），并将段头存在根页                                                     //每个索引根页，存在【叶子节点段】【叶子节点段】的头部，段对象在哪一页，偏移值
+                // 创建PAGE_BTR_SEG_TOP段（非叶子节点段），并将段头存在根页                                                     //每个索引根页，存储【叶子节点段】【叶子节点段】的头部，段对象在哪一页，偏移值
                 // 会生成一个新的Page
                 // 会生成一个新的Inode
                 // 会把Inode对象存在Inode页中，具体是第几个Inode对象等信息存在新Page的PAGE_BTR_SEG_TOP区域
