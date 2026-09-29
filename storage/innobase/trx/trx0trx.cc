@@ -1438,7 +1438,7 @@ trx_start_low(
 		trx_sys_mutex_exit();
 
 	} else {
-		trx->id = 0;
+		trx->id = 0;                                                                                                    // 查询语句，事务id=0
 
 		if (!trx_is_autocommit_non_locking(trx)) {
 

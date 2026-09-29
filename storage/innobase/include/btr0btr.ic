@@ -251,7 +251,7 @@ with rec_get_offsets(n_fields=ULINT_UNDEFINED).
 @return child node address */
 UNIV_INLINE
 ulint
-btr_node_ptr_get_child_page_no(
+btr_node_ptr_get_child_page_no(                                                                                         // 获取索引记录的页号
 /*===========================*/
 	const rec_t*	rec,	/*!< in: node pointer record */
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */

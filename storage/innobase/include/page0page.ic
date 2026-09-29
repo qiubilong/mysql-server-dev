@@ -866,7 +866,7 @@ Gets the pointer to the next record on the page.
 @return pointer to next record */
 UNIV_INLINE
 const rec_t*
-page_rec_get_next_low(
+page_rec_get_next_low(                                                                                                  // 获取下一条记录的指针，往左读2个字节
 /*==================*/
 	const rec_t*	rec,	/*!< in: pointer to record */
 	ulint		comp)	/*!< in: nonzero=compact page layout */
@@ -878,7 +878,7 @@ page_rec_get_next_low(
 
 	page = page_align(rec);
         // 取一下条记录在当前页中的偏移量
-	offs = rec_get_next_offs(rec, comp);
+	offs = rec_get_next_offs(rec, comp);                                                                                // 获取下一条记录的指针，往左读2个字节
 
 	if (offs >= UNIV_PAGE_SIZE) {
 		fprintf(stderr,
@@ -907,7 +907,7 @@ page_rec_get_next(
 /*==============*/
 	rec_t*	rec)	/*!< in: pointer to record */
 {
-	return((rec_t*) page_rec_get_next_low(rec, page_rec_is_comp(rec)));
+	return((rec_t*) page_rec_get_next_low(rec, page_rec_is_comp(rec)));                                                 //获取下一条记录
 }
 
 /************************************************************//**
@@ -919,7 +919,7 @@ page_rec_get_next_const(
 /*====================*/
 	const rec_t*	rec)	/*!< in: pointer to record */
 {
-	return(page_rec_get_next_low(rec, page_rec_is_comp(rec)));
+	return(page_rec_get_next_low(rec, page_rec_is_comp(rec)));                                                          // 获取下一条记录的指针，往左读2个字节
 }
 
 /************************************************************//**

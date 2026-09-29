@@ -402,7 +402,7 @@ populate_offsets(
 /****************************************************************//**
 Searches the right position for a page cursor. */
 void
-page_cur_search_with_match(
+page_cur_search_with_match(                                                                                             //########### B+树 多层时，自上到下搜索，定位查询游标
 /*=======================*/
 	const buf_block_t*	block,	/*!< in: buffer block */
 	const dict_index_t*	index,	/*!< in/out: record descriptor */
@@ -522,7 +522,7 @@ page_cur_search_with_match(
 	slots come to the distance 1 of each other */
 
 	while (up - low > 1) {
-		mid = (low + up) / 2;
+		mid = (low + up) / 2;                                                                                           // 1、页目录二分查找，找到第一个大于【查询值】的页目录的上一个页目录
 		slot = page_dir_get_nth_slot(page, mid);
 		mid_rec = page_dir_slot_get_rec(slot);
 
@@ -578,17 +578,17 @@ up_slot_match:
 	}
 
 	slot = page_dir_get_nth_slot(page, low);
-	low_rec = page_dir_slot_get_rec(slot);
+	low_rec = page_dir_slot_get_rec(slot);                                                                              //左边记录，比如 最小记录 infimum
 	slot = page_dir_get_nth_slot(page, up);
-	up_rec = page_dir_slot_get_rec(slot);
+	up_rec = page_dir_slot_get_rec(slot);                                                                               //右边记录，比如 最大记录 supremum
 
 	/* Perform linear search until the upper and lower records come to
 	distance 1 of each other. */
 
-	while (page_rec_get_next_const(low_rec) != up_rec) {
+	while (page_rec_get_next_const(low_rec) != up_rec) {                                                                //从左到右，遍历记录
 
-                // 从low_rec的下一条记录开始遍历
-		mid_rec = page_rec_get_next_const(low_rec);
+                // 从low_rec的下一条记录开始遍历，也就是infimum的下一条记录，比如id=1
+		mid_rec = page_rec_get_next_const(low_rec);                                                                     //获取下一条记录的指针，往左读2个字节
 
 		cur_matched_fields = std::min(low_matched_fields,
 					      up_matched_fields);
@@ -611,12 +611,12 @@ up_slot_match:
 			tuple, mid_rec, offsets, &cur_matched_fields);
 
                 // 如果tuple > mid_rec，下一次循环将继续取mid_rec的下一条记录
-		if (cmp > 0) {
+		if (cmp > 0) {                                                                                                  //【查询值】大，继续取下一条记录
 low_rec_match:
 			low_rec = mid_rec;
 			low_matched_fields = cur_matched_fields;
 
-		} else if (cmp) {
+		} else if (cmp) {                                                                                               //【查询值】小，退出循环，
 #ifdef PAGE_CUR_LE_OR_EXTENDS
 			if (mode == PAGE_CUR_LE_OR_EXTENDS
 			    && page_cur_rec_field_extends(
@@ -689,7 +689,7 @@ lower limit record
 first partially matched field in the lower limit record
 @param[out]	cursor			page cursor */
 void
-page_cur_search_with_match_bytes(
+page_cur_search_with_match_bytes(                                                                                       // 叶子节点查找记录
 	const buf_block_t*	block,
 	const dict_index_t*	index,
 	const dtuple_t*		tuple,
@@ -790,7 +790,7 @@ page_cur_search_with_match_bytes(
 	/* Perform binary search until the lower and upper limit directory
 	slots come to the distance 1 of each other */
 
-	while (up - low > 1) {
+	while (up - low > 1) {                                                                                              // 页目录二分查找
 		mid = (low + up) / 2;
 		slot = page_dir_get_nth_slot(page, mid);
 		mid_rec = page_dir_slot_get_rec(slot);
@@ -848,7 +848,7 @@ up_slot_match:
 	/* Perform linear search until the upper and lower records come to
 	distance 1 of each other. */
 
-	while (page_rec_get_next_const(low_rec) != up_rec) {
+	while (page_rec_get_next_const(low_rec) != up_rec) {                                                                // 从左到右，遍历记录链表
 
 		mid_rec = page_rec_get_next_const(low_rec);
 
@@ -864,7 +864,7 @@ up_slot_match:
 			tuple, mid_rec, index, offsets,
 			&cur_matched_fields, &cur_matched_bytes);
 
-		if (cmp > 0) {
+		if (cmp > 0) {                                                                                                  //【查询值】大，继续下一条
 low_rec_match:
 			low_rec = mid_rec;
 			low_matched_fields = cur_matched_fields;
@@ -914,7 +914,7 @@ up_rec_match:
 	}
 
 	if (mode <= PAGE_CUR_GE) {
-		page_cur_position(up_rec, block, cursor);
+		page_cur_position(up_rec, block, cursor);                                                                       // 等值，大于都是走升序查询，返回>=【匹配值】的游标
 	} else {
 		page_cur_position(low_rec, block, cursor);
 	}

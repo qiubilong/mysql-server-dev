@@ -178,7 +178,7 @@ page_cur_move_to_next(
 {
 	ut_ad(!page_cur_is_after_last(cur));
 
-	cur->rec = page_rec_get_next(cur->rec);
+	cur->rec = page_rec_get_next(cur->rec);                                                                             // 获取下一条记录，往左读2个字节
 }
 
 /**********************************************************//**

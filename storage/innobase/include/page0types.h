@@ -73,7 +73,7 @@ ssize, which is the number of shifts from 512. */
 enum page_cur_mode_t {
 	PAGE_CUR_UNSUPP	= 0,
 	PAGE_CUR_G	= 1,
-	PAGE_CUR_GE	= 2,
+	PAGE_CUR_GE	= 2,                                                                                                    //大于等于
 	PAGE_CUR_L	= 3,
 	PAGE_CUR_LE	= 4,
 

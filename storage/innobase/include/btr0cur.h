@@ -242,7 +242,7 @@ btr_cur_open_at_index_side_func(
 	ulint		line,		/*!< in: line where called */
 	mtr_t*		mtr);		/*!< in/out: mini-transaction */
 #define btr_cur_open_at_index_side(f,i,l,c,lv,m)			\
-	btr_cur_open_at_index_side_func(f,i,l,c,lv,__FILE__,__LINE__,m)
+	btr_cur_open_at_index_side_func(f,i,l,c,lv,__FILE__,__LINE__,m)                                                     //### 从B+树【左边】 或者【右边】开始查询
 
 /** Opens a cursor at either end of an index.
 Avoid taking latches on buffer, just pin (by incrementing fix_count)

@@ -25,3 +25,42 @@ insert into t values(1, repeat('a',10000));
 insert into t values(2,'dadudu');
 
 ````
+
+## 查询数据
+ ### storage\innobase\row\row0sel.cc:row_search_mvcc
+````sql
+CREATE TABLE `t1` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+DELIMITER $$
+CREATE PROCEDURE `insert_t1_500`()
+BEGIN
+    DECLARE i INT DEFAULT 1;
+
+    WHILE i <= 500 DO
+        INSERT INTO `t1` (`a`, `b`) VALUES (FLOOR(1 + RAND() * 1000), CONCAT('test_', i));
+        SET i = i + 1;
+END WHILE;
+END$$
+DELIMITER ;
+
+CALL insert_t1_500();
+
+------------------------------------------------------------
+
+select * from t1 where id = 100;
+select * from t1 where id < 100;
+select * from t1 where id > 100;
+select * from t1;select * from t1 order by id asc;
+select * from t1 order by id desc;
+select * from t1 where id < 100 order by id desc;
+select * from t1 where id < 100 order by id asc;
+select * from t1 where id > 100 order by id asc;
+select * from t1 where id > 100 order by id desc;
+select * from t1 where id in (6,3,4);
+
+````

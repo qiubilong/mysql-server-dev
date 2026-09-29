@@ -480,7 +480,7 @@ struct row_printf_node_t{
 };
 
 /** Search direction for the MySQL interface */
-enum row_sel_direction {
+enum row_sel_direction {                                                                                                //升序、降序
 	ROW_SEL_NEXT = 1,	/*!< ascending direction */
 	ROW_SEL_PREV = 2	/*!< descending direction */
 };

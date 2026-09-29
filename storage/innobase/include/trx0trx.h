@@ -1303,7 +1303,7 @@ trx_is_started(
 						level; otherwise like level
 						2 */
 
-#define TRX_ISO_READ_COMMITTED		1	/* somewhat Oracle-like
+#define TRX_ISO_READ_COMMITTED		1	/* somewhat Oracle-like                                                         //## 事务隔离级别 -- 读提交
 						isolation, except that in
 						range UPDATE and DELETE we
 						must block phantom rows
@@ -1316,7 +1316,7 @@ trx_is_started(
 						each consistent read reads its
 						own snapshot */
 
-#define TRX_ISO_REPEATABLE_READ		2	/* this is the default;
+#define TRX_ISO_REPEATABLE_READ		2	/* this is the default;                                                         // ## 事务隔离级别 -- 可重复读
 						all consistent reads in the
 						same trx read the same
 						snapshot;

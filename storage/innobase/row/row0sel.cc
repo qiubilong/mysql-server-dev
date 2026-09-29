@@ -4674,10 +4674,10 @@ It also has optimization such as pre-caching the rows, using AHI, etc.
 				cursor 'direction' should be 0.
 @return DB_SUCCESS or error code */
 dberr_t
-row_search_mvcc(
-	byte*		buf,
+row_search_mvcc(                                                                                                        // ### 查询一行数据
+	byte*		buf,            // 查询结果
 	page_cur_mode_t	mode,
-	row_prebuilt_t*	prebuilt,
+	row_prebuilt_t*	prebuilt,  // 查询对象 == 查询条件search_tuple  +  索引 index + 游标 pcur（页号、记录指针）
 	ulint		match_mode,
 	ulint		direction)
 {
@@ -4879,7 +4879,7 @@ row_search_mvcc(
 
         // 如果是在唯一索引上进行精确匹配，搜索字段个数等于索引字段个数并且搜索字段中不包含null值，也就是SQL语句的搜索条件提供了索引的全部字段
         // search_tuple中只会包含索引字段对应的搜索条件
-	if (match_mode == ROW_SEL_EXACT
+	if (match_mode == ROW_SEL_EXACT                                                                                     //ROW_SEL_EXACT==唯一索引，精准匹配
 	    && dict_index_is_unique(index)
 	    && dtuple_get_n_fields(search_tuple)
 	    == dict_index_get_n_unique(index)
@@ -5073,8 +5073,8 @@ row_search_mvcc(
 	      || prebuilt->select_lock_type != LOCK_NONE
 	      || MVCC::is_view_active(trx->read_view)
 	      || srv_read_only_mode);
-        // 开启事务
-	trx_start_if_not_started(trx, false);
+
+	trx_start_if_not_started(trx, false);                                                                               // 开启事务，事务id=0
         // 如果隔离级别是读未提交或读已提交，不用加gap锁
 	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
 	    && prebuilt->select_lock_type != LOCK_NONE
@@ -5090,13 +5090,13 @@ row_search_mvcc(
 	naturally moves upward (in fetch next) in alphabetical order,
 	otherwise downward */
         // order by id desc时，direction为2，表示按降序方向移动
-	if (direction == 0) {
+	if (direction == 0) {          //direction表示升序 or 降序
 
 		if (mode == PAGE_CUR_GE
 		    || mode == PAGE_CUR_G
 		    || mode >= PAGE_CUR_CONTAIN) {
 
-			moves_up = TRUE;
+			moves_up = TRUE;                                //moves_up = TRUE 表示升序
 		}
 
 	} else if (direction == ROW_SEL_NEXT) {
@@ -5190,7 +5190,7 @@ wait_table_again:
 			goto next_rec;
 		}
 
-	} else if (dtuple_get_n_fields(search_tuple) > 0) {
+	} else if (dtuple_get_n_fields(search_tuple) > 0) {                                                                 //######## 有条件搜索，例如where id = 100;
 		pcur->btr_cur.thr = thr;
 
 		if (dict_index_is_spatial(index)) {
@@ -5227,8 +5227,8 @@ wait_table_again:
                 // select * from user_info where id <= 3 order by id desc; mode为mode为PAGE_CUR_LE
 
 
-                // 遍历B+树，根据search_tuple中指定的查询字段和值，根据mode找到第一个符合条件的记录
-		btr_pcur_open_with_no_init(index, search_tuple, mode,
+
+		btr_pcur_open_with_no_init(index, search_tuple, mode,                                                           // ### 有条件时搜索 -- 遍历B+树，根据search_tuple中指定的查询字段和值，根据mode找到第一个符合条件的记录
 					   BTR_SEARCH_LEAF,
 					   pcur, 0, &mtr);
 
@@ -5267,17 +5267,17 @@ wait_table_again:
 				goto lock_wait_or_error;
 			}
 		}
-	} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_L) {
+	} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_L) {                                                              //####### 无条件搜索
                 // select * from user_info; mode为PAGE_CUR_G
                 // select * from user_info order by id desc; mode为PAGE_CUR_L
 
 		// PAGE_CUR_G会指向B+树中叶子节点的最左边页的中的最小记录，PAGE_CUR_G则指向B+树中叶子节点的最右边页的中的最大记录
-                btr_pcur_open_at_index_side(
+                btr_pcur_open_at_index_side(                                                                            //### 决定从B+树【左边】还是【右边】开始查询
 			mode == PAGE_CUR_G, index, BTR_SEARCH_LEAF,
 			pcur, false, 0, &mtr);
 	}
 
-rec_loop:
+rec_loop:                                                                                                               //#### 得到查询游标后，循环获取多条记录，因为
 	DEBUG_SYNC_C("row_search_rec_loop");
 	if (trx_is_interrupted(trx)) {
 		if (!spatial_search) {
@@ -5403,9 +5403,9 @@ rec_loop:
 	/* Do sanity checks in case our cursor has bumped into page
 	corruption */
 
-	if (comp) {
+	if (comp) {/* 默认是压缩记录格式 */
 		// 找到一行记录后，先记录一下下一行的偏移位置
-                next_offs = rec_get_next_offs(rec, TRUE);
+                next_offs = rec_get_next_offs(rec, TRUE);                                                          // 下一行记录遍历
 		if (UNIV_UNLIKELY(next_offs < PAGE_NEW_SUPREMUM)) {
 
 			goto wrong_offs;
@@ -5497,13 +5497,13 @@ wrong_offs:
 	we have to recompare rec and search_tuple to determine if they
 	match enough. */
 
-	if (match_mode == ROW_SEL_EXACT) {
+	if (match_mode == ROW_SEL_EXACT) { //等值匹配
 		/* Test if the index record matches completely to search_tuple
 		in prebuilt: if not, then we return with DB_RECORD_NOT_FOUND */
 
 		/* fputs("Comparing rec and search tuple\n", stderr); */
                 // 如果search_tuple和rec不相等
-		if (0 != cmp_dtuple_rec(search_tuple, rec, offsets)) {
+		if (0 != cmp_dtuple_rec(search_tuple, rec, offsets)) {                                                           //### 比较记录和【查询参数】，如果不相等，则结束查找
 
 			if (set_also_gap_locks
 			    && !(srv_locks_unsafe_for_binlog
@@ -5639,8 +5639,8 @@ wrong_offs:
 no_gap_lock:
 			lock_type = LOCK_REC_NOT_GAP;
 		}
-                // 给某一行记录加锁
-		err = sel_set_rec_lock(pcur,
+
+		err = sel_set_rec_lock(pcur,                                                                                    // 给某一行记录加锁
 				       rec, index, offsets,
 				       prebuilt->select_lock_type,
 				       lock_type, thr, &mtr);
@@ -5751,7 +5751,7 @@ no_gap_lock:
 
                         // 找到了符合搜索条件的记录，判断当前版本是不是当前ReadView可见，如果不可见则从版本链上取上一个版本
 			if (srv_force_recovery < 5
-			    && !lock_clust_rec_cons_read_sees(
+			    && !lock_clust_rec_cons_read_sees(                                                                      //## 一致性读检查
 				    rec, index, offsets,
 				    trx_get_read_view(trx))) {
 
@@ -5900,7 +5900,7 @@ requires_clust_rec:
 		'clust_rec'. Note that 'clust_rec' can be an old version
 		built for a consistent read. */
                 // 从聚集索引上找到对应记录，回表
-		err = row_sel_get_clust_rec_for_mysql(prebuilt, index, rec,
+		err = row_sel_get_clust_rec_for_mysql(prebuilt, index, rec,                                                     // 回表查询
 						      thr, &clust_rec,
 						      &offsets, &heap,
 						      need_vrow ? &vrow : NULL,
@@ -6278,7 +6278,7 @@ next_rec:
 				search_tuple, mode, pcur, 0, &mtr);
 		} else {
                         // 移动到下一条记录，会修改pcur
-			move = btr_pcur_move_to_next(pcur, &mtr);
+			move = btr_pcur_move_to_next(pcur, &mtr);                                                                   //### 读取下一行记录，修改游标pcur
 		}
 
 		if (!move) {
@@ -6301,7 +6301,7 @@ not_moved:
 		}
 	}
 
-	goto rec_loop;
+	goto rec_loop;                                                                                                      //
 
 lock_wait_or_error:
 	/* Reset the old and new "did semi-consistent read" flags. */

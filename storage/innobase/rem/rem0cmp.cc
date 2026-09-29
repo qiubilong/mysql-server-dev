@@ -710,7 +710,7 @@ cmp_dtuple_rec_with_match_low(
 
 	/* Match fields in a loop */
 
-	for (; cur_field < n_cmp; cur_field++) {
+	for (; cur_field < n_cmp; cur_field++) {                                                                            //### 比较【查询值】和【记录值】
 		const byte*	rec_b_ptr;
 		const dfield_t*	dtuple_field
 			= dtuple_get_nth_field(dtuple, cur_field);

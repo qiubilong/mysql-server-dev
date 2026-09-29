@@ -444,7 +444,7 @@ btr_pcur_move_to_next_page(
 	cursor->old_stored = false;
 
 	page = btr_pcur_get_page(cursor);
-	next_page_no = btr_page_get_next(page, mtr);
+	next_page_no = btr_page_get_next(page, mtr);                                                                        //下一页
 
 	ut_ad(next_page_no != FIL_NULL);
 
@@ -465,7 +465,7 @@ btr_pcur_move_to_next_page(
 
 	buf_block_t*	block = btr_pcur_get_block(cursor);
 
-	next_block = btr_block_get(
+	next_block = btr_block_get(                                                                                         //加载下一页
 		page_id_t(block->page.id.space(), next_page_no),
 		block->page.size, mode,
 		btr_pcur_get_btr_cur(cursor)->index, mtr);
@@ -493,7 +493,7 @@ btr_pcur_move_to_next_page(
 
 	btr_leaf_page_release(btr_pcur_get_block(cursor), mode, mtr);
 
-	page_cur_set_before_first(next_block, btr_pcur_get_page_cur(cursor));
+	page_cur_set_before_first(next_block, btr_pcur_get_page_cur(cursor));                                               //设置游标，从下一页的最小记录 infimum 开始
 
 	ut_d(page_check_dir(next_page));
 }

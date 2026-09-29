@@ -8821,7 +8821,7 @@ ha_innobase::index_read(
 				m_user_thd);
 
                         // mode表示查询方式，大于、小于、等于、like、in等等
-			ret = row_search_mvcc(
+			ret = row_search_mvcc(                                                                                      // 查询一行数据
 				buf, mode, m_prebuilt, match_mode, 0);
 
 		} else {

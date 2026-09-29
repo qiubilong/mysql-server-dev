@@ -742,7 +742,7 @@ search tuple should be performed in the B-tree. InnoDB does an insert
 immediately after the cursor. Thus, the cursor may end up on a user record,
 or on a page infimum record. */
 void
-btr_cur_search_to_nth_level(
+btr_cur_search_to_nth_level(                                                                                            //从根页开始搜索，直到叶子节点
 /*========================*/
 	dict_index_t*	index,	/*!< in: index */
 	ulint		level,	/*!< in: the tree level of search */
@@ -859,7 +859,7 @@ btr_cur_search_to_nth_level(
 			    & (BTR_INSERT | BTR_DELETE | BTR_DELETE_MARK),
 			    0)) {
 	case 0:
-		btr_op = BTR_NO_OP;
+		btr_op = BTR_NO_OP; //查询操作
 		break;
 	case BTR_INSERT:
 		btr_op = (latch_mode & BTR_IGNORE_SEC_UNIQUE)
@@ -1021,13 +1021,13 @@ btr_cur_search_to_nth_level(
 	}
 	root_leaf_rw_latch = btr_cur_latch_for_root_leaf(latch_mode);
 
-	page_cursor = btr_cur_get_page_cur(cursor);
+	page_cursor = btr_cur_get_page_cur(cursor);                                                                         //查询游标对象
 
 	const ulint		space = dict_index_get_space(index);
 	const page_size_t	page_size(dict_table_page_size(index->table));
 
 	/* Start with the root page. */
-	page_id_t		page_id(space, dict_index_get_page(index));
+	page_id_t		page_id(space, dict_index_get_page(index));                                                         //从根页开始，索引根页=3
 
 	if (root_leaf_rw_latch == RW_X_LATCH) {
 		node_ptr_max_size = dict_index_node_ptr_max_size(index);
@@ -1038,7 +1038,7 @@ btr_cur_search_to_nth_level(
 	low_match = 0;
 	low_bytes = 0;
 
-	height = ULINT_UNDEFINED;
+	height = ULINT_UNDEFINED;//索引树高度，默认很大
 
 	/* We use these modified search modes on non-leaf levels of the
 	B-tree. These let us end up in the right B-tree leaf. In that leaf
@@ -1067,7 +1067,7 @@ btr_cur_search_to_nth_level(
 	/* Loop and search until we arrive at the desired level */
 	btr_latch_leaves_t latch_leaves = {{NULL, NULL, NULL}, {0, 0, 0}};
 
-search_loop:
+search_loop:                                                                                                            //########## 从根页开始搜索，直到叶子节点【循环】，先从根页定位索引记录，得到记录页号，然后再去记录页查找
 	buf_mode = BUF_GET;
 	rw_latch = RW_NO_LATCH;
 	rtree_parent_modified = false;
@@ -1107,7 +1107,7 @@ search_loop:
 retry_page_get:
 	ut_ad(n_blocks < BTR_MAX_LEVELS);
 	tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-	block = buf_page_get_gen(
+	block = buf_page_get_gen(                                                                                           // 加载数据页，根页3、记录页4
 		page_id, page_size, rw_latch,
 		(height == ULINT_UNDEFINED ? info->root_guess : NULL),
 		buf_mode, file, line, mtr
@@ -1225,7 +1225,7 @@ retry_page_get:
 			tree_blocks[n_blocks]);
 
 		tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-		block = buf_page_get_gen(page_id, page_size, rw_latch, NULL,
+		block = buf_page_get_gen(page_id, page_size, rw_latch, NULL,                                                    // 加载索引根页
 					 buf_mode, file, line, mtr);
 		tree_blocks[n_blocks] = block;
 	}
@@ -1266,10 +1266,10 @@ retry_page_get:
 	ut_ad(fil_page_index_page_check(page));
 	ut_ad(index->id == btr_page_get_index_id(page));
 
-	if (UNIV_UNLIKELY(height == ULINT_UNDEFINED)) {
+	if (UNIV_UNLIKELY(height == ULINT_UNDEFINED)) {   // 默认 height==ULINT_UNDEFINED
 		/* We are in the root node */
 
-		height = btr_page_get_level(page, mtr);
+		height = btr_page_get_level(page, mtr); // B+树实际高度
 		root_height = height;
 		cursor->tree_height = root_height + 1;
 
@@ -1295,7 +1295,7 @@ retry_page_get:
 			rtr_get_mbr_from_tuple(tuple, &cursor->rtr_info->mbr);
 		}
 
-		info->root_guess = block;
+		info->root_guess = block; // 默认从 B+ 树根页 开始
 	}
 
 	if (height == 0) {
@@ -1435,13 +1435,13 @@ retry_page_get:
 		for leaf pages (height==0), but not in r-trees.
 		We only need the byte prefix comparison for the purpose
 		of updating the adaptive hash index. */
-		page_cur_search_with_match_bytes(
+		page_cur_search_with_match_bytes(                                                                               //### 2、从叶子节点查找记录
 			block, index, tuple, page_mode, &up_match, &up_bytes,
 			&low_match, &low_bytes, page_cursor);
 	} else {
 		/* Search for complete index fields. */
 		up_bytes = low_bytes = 0;
-		page_cur_search_with_match(
+		page_cur_search_with_match(                                                                                     //########### 1、B+树 多层时，从根页定位查询叶子节点，也就是查询【索引记录】，定位页号
 			block, index, tuple, page_mode, &up_match,
 			&low_match, page_cursor,
 			need_path ? cursor->rtr_info : NULL);
@@ -1484,7 +1484,7 @@ retry_page_get:
 		}
 	}
 
-	if (level != height) {
+	if (level != height) {                                                                                              //########### B+树 多层时，从根页定位查询游标
 
 		const rec_t*	node_ptr;
 		ut_ad(height > 0);
@@ -1781,7 +1781,7 @@ need_opposite_intention:
 		/* Go to the child node */
 		page_id.reset(
 			space,
-			btr_node_ptr_get_child_page_no(node_ptr, offsets));
+			btr_node_ptr_get_child_page_no(node_ptr, offsets));                                                         // 获取索引记录的页号
 
 		n_blocks++;
 
@@ -2127,7 +2127,7 @@ btr_cur_search_to_nth_level_with_no_latch(
 /*****************************************************************//**
 Opens a cursor at either end of an index. */
 void
-btr_cur_open_at_index_side_func(
+btr_cur_open_at_index_side_func(                                                                                         //### 从B+树【左边】 或者【右边】开始查询
 /*============================*/
 	bool		from_left,	/*!< in: true if open to the low end,
 					false if to the high end */
@@ -2370,10 +2370,10 @@ btr_cur_open_at_index_side_func(
 
 		if (from_left) {
                         // 需要从叶子左边开始遍历，也就是升序遍历，page_cursor指向当前页的最小记录
-                        page_cur_set_before_first(block, page_cursor);
+                        page_cur_set_before_first(block, page_cursor);                                                  // 升序遍历时 -- 指向【最小记录】
 		} else {
                         // 需要从叶子右边开始遍历，也就是降序序遍历，page_cursor执行当前页的最大记录
-			page_cur_set_after_last(block, page_cursor);
+			page_cur_set_after_last(block, page_cursor);                                                                // 降序遍历时 -- 指向【最大记录】
 		}
 
 		if (height == level) {
@@ -2389,10 +2389,10 @@ btr_cur_open_at_index_side_func(
 
 		if (from_left) {
                         // page_cursor执行最小记录的下一条记录
-			page_cur_move_to_next(page_cursor);
+			page_cur_move_to_next(page_cursor);                                                                         // ## 从【最小记录】开始遍历 -- 升序遍历
 		} else {
                         // page_cursor指向最大记录的前一条记录
-			page_cur_move_to_prev(page_cursor);
+			page_cur_move_to_prev(page_cursor);                                                                         // ## 从【最大记录】开始遍历 -- 降序遍历
 		}
 
 		if (estimate) {
