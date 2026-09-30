@@ -191,7 +191,7 @@ page_cur_move_to_prev(
 {
 	ut_ad(!page_cur_is_before_first(cur));
 
-	cur->rec = page_rec_get_prev(cur->rec);
+	cur->rec = page_rec_get_prev(cur->rec);                                                                             //降序遍历，从右到左遍历，移动游标
 }
 
 #ifndef UNIV_HOTBACKUP

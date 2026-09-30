@@ -980,7 +980,7 @@ Gets the pointer to the previous record.
 @return pointer to previous record */
 UNIV_INLINE
 const rec_t*
-page_rec_get_prev_const(
+page_rec_get_prev_const(                                                                                                //降序遍历，从右到左遍历，移动游标
 /*====================*/
 	const rec_t*	rec)	/*!< in: pointer to record, must not be page
 				infimum */
@@ -1006,7 +1006,7 @@ page_rec_get_prev_const(
 	rec2 = page_dir_slot_get_rec(slot);
         // 然后遍历rec2的下一条记录，看哪条记录的的next等于rec，那么这条记录就是rec的前一条记录
 	if (page_is_comp(page)) {
-		while (rec != rec2) {
+		while (rec != rec2) {                                                                                           // 从上一个【页目录分组】的记录指针开始升序遍历，找到前一条记录
 			prev_rec = rec2;
 			rec2 = page_rec_get_next_low(rec2, TRUE);
 		}
@@ -1032,7 +1032,7 @@ page_rec_get_prev(
 	rec_t*	rec)	/*!< in: pointer to record, must not be page
 			infimum */
 {
-	return((rec_t*) page_rec_get_prev_const(rec));
+	return((rec_t*) page_rec_get_prev_const(rec));                                                                      //降序遍历，从右到左遍历，移动游标
 }
 
 /***************************************************************//**

@@ -6460,7 +6460,7 @@ int handler::multi_range_read_next(char **range_info)
     /* Save a call if there can be only one row in range. */
     if (mrr_cur_range.range_flag != (UNIQUE_RANGE | EQ_RANGE))
     {
-      result= read_range_next();
+      result= read_range_next();                                                                                        // 2、范围查询，遍历获取记录
       /* On success or non-EOF errors jump to the end. */
       if (result != HA_ERR_END_OF_FILE)
         break;
@@ -6476,7 +6476,7 @@ start:
     while (!(range_res= mrr_funcs.next(mrr_iter, &mrr_cur_range)))
     {
 scan_it_again:
-      result= read_range_first(mrr_cur_range.start_key.keypart_map ?
+      result= read_range_first(mrr_cur_range.start_key.keypart_map ?                                             // 1、先定位索引游标
                                  &mrr_cur_range.start_key : 0,
                                mrr_cur_range.end_key.keypart_map ?
                                  &mrr_cur_range.end_key : 0,
@@ -7467,7 +7467,7 @@ int handler::read_range_next()
 
   // 当根据索引key在索引上进行范围查找时
   // 比较查到的key是否小于等于范围的end值，如果超过了则表示已经查到了所有数据了
-  if (compare_key(end_range) <= 0)
+  if (compare_key(end_range) <= 0)                                                                                      // 比较数据查询返回
   {
     DBUG_RETURN(0);
   }

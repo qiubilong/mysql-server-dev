@@ -511,7 +511,7 @@ static int rr_index_desc(READ_RECORD *info)
 }
 
 
-int rr_sequential(READ_RECORD *info)
+int rr_sequential(READ_RECORD *info)                                                                                    //全表扫描
 {
   int tmp;
   while ((tmp=info->table->file->ha_rnd_next(info->record)))

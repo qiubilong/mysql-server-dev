@@ -603,7 +603,7 @@ public:
   static void operator delete(void *ptr_arg, size_t size) throw()
   { TRASH(ptr_arg, size); }
 
-  uchar		*ptr;			// Position to field in record
+  uchar		*ptr;			                                                                                                    // 记录值（主键id） Position to field in record
 
 private:
   /**

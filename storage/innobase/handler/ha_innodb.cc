@@ -8783,8 +8783,8 @@ ha_innobase::index_read(
         // 只有:
         // 大于、大于等于: SELECT * FROM user_info_gap WHERE id < 20 ORDER BY ID ASC;  id<=20就是GE
         // 小于、小于等于: SELECT * FROM user_info_gap WHERE id < 20 ORDER BY ID DESC; id<=20就是LE
-        // 一般情况下都是GE，当走索引的范围查询，DESC排序时就会出现L或LE
-	page_cur_mode_t	mode = convert_search_mode_to_innobase(find_flag);
+
+	page_cur_mode_t	mode = convert_search_mode_to_innobase(find_flag);                                                  // 一般情况下都是GE，当走索引的范围查询，DESC排序时就会出现L或LE
 
 	ulint	match_mode = 0;
 
@@ -9122,7 +9122,7 @@ ha_innobase::general_fetch(
 
 	if (!intrinsic) {
 
-		ret = row_search_mvcc(
+		ret = row_search_mvcc(                                                                                          //范围查询，继续下一行数据
 			buf, PAGE_CUR_UNSUPP, m_prebuilt, match_mode,
 			direction);
 

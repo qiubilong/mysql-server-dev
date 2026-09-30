@@ -4051,7 +4051,7 @@ btr search latch has been locked in S-mode if AHI is enabled.
 @return SEL_FOUND, SEL_EXHAUSTED, SEL_RETRY */
 static
 ulint
-row_sel_try_search_shortcut_for_mysql(
+row_sel_try_search_shortcut_for_mysql(                                                                                  //主键索引，in 查询 快速定位
 /*==================================*/
 	const rec_t**	out_rec,/*!< out: record if found */
 	row_prebuilt_t*	prebuilt,/*!< in: prebuilt struct */
@@ -4068,7 +4068,7 @@ row_sel_try_search_shortcut_for_mysql(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!prebuilt->templ_contains_blob);
 
-	btr_pcur_open_with_no_init(index, search_tuple, PAGE_CUR_GE,
+	btr_pcur_open_with_no_init(index, search_tuple, PAGE_CUR_GE,                                                        //从上到下遍历B+树定位游标，in 查询 快速定位记录
 				   BTR_SEARCH_LEAF, pcur,
 				   (trx->has_search_latch)
 				    ? RW_S_LATCH
@@ -4679,7 +4679,7 @@ row_search_mvcc(                                                                
 	page_cur_mode_t	mode,
 	row_prebuilt_t*	prebuilt,  // 查询对象 == 查询条件search_tuple  +  索引 index + 游标 pcur（页号、记录指针）
 	ulint		match_mode,
-	ulint		direction)
+	ulint		direction)    // 遍历方向 direction 0=未定；1=升序；2=降序
 {
 	DBUG_ENTER("row_search_mvcc");
 
@@ -4969,7 +4969,7 @@ row_search_mvcc(                                                                
 			rw_lock_s_lock(btr_get_search_latch(index));
 			trx->has_search_latch = true;
 
-			switch (row_sel_try_search_shortcut_for_mysql(
+			switch (row_sel_try_search_shortcut_for_mysql(                                                              //in查询快捷路径， btr_pcur_open_with_no_init B+从上到下定位记录
 					&rec, prebuilt, &offsets, &heap,
 					&mtr)) {
 			case SEL_FOUND:
@@ -5156,7 +5156,7 @@ wait_table_again:
 
 	/* Open or restore index cursor position */
 
-	if (UNIV_LIKELY(direction != 0)) {
+	if (UNIV_LIKELY(direction != 0)) {                                                                                  // #### 非首次调用方法，查询游标已经确认，继续遍历记录
 		if (spatial_search) {
 			/* R-Tree access does not need to do
 			cursor position and resposition */
@@ -5187,10 +5187,10 @@ wait_table_again:
 			pessimistic locking read, the record
 			cannot be skipped. */
 
-			goto next_rec;
+			goto next_rec;                                                                                              // #### 非首次调用方法，查询游标已经确认，继续遍历记录
 		}
 
-	} else if (dtuple_get_n_fields(search_tuple) > 0) {                                                                 //######## 有条件搜索，例如where id = 100;
+	} else if (dtuple_get_n_fields(search_tuple) > 0) {                                                                 //######## 1、有条件搜索，例如where id = 100 / id>100
 		pcur->btr_cur.thr = thr;
 
 		if (dict_index_is_spatial(index)) {
@@ -5228,7 +5228,7 @@ wait_table_again:
 
 
 
-		btr_pcur_open_with_no_init(index, search_tuple, mode,                                                           // ### 有条件时搜索 -- 遍历B+树，根据search_tuple中指定的查询字段和值，根据mode找到第一个符合条件的记录
+		btr_pcur_open_with_no_init(index, search_tuple, mode,                                                           // ### 1、id=100 / id>100  -- 从上到下遍历B+树定位游标，根据search_tuple中指定的查询字段和值，根据mode找到第一个符合条件的记录
 					   BTR_SEARCH_LEAF,
 					   pcur, 0, &mtr);
 
@@ -5267,17 +5267,17 @@ wait_table_again:
 				goto lock_wait_or_error;
 			}
 		}
-	} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_L) {                                                              //####### 无条件搜索
+	} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_L) {                                                              //####### 从B+树【最左边】或【最右边】开始遍历查询，也就是从【最小记录】或【最大记录】开始遍历，例如 where id<100
                 // select * from user_info; mode为PAGE_CUR_G
                 // select * from user_info order by id desc; mode为PAGE_CUR_L
 
 		// PAGE_CUR_G会指向B+树中叶子节点的最左边页的中的最小记录，PAGE_CUR_G则指向B+树中叶子节点的最右边页的中的最大记录
-                btr_pcur_open_at_index_side(                                                                            //### 决定从B+树【左边】还是【右边】开始查询
+                btr_pcur_open_at_index_side(                                                                            //### 1、决定从B+树【左边】还是【右边】开始查询，第一次先返回游标
 			mode == PAGE_CUR_G, index, BTR_SEARCH_LEAF,
 			pcur, false, 0, &mtr);
 	}
 
-rec_loop:                                                                                                               //#### 得到查询游标后，循环获取多条记录，因为
+rec_loop:                                                                                                               //#### 得到记录，返回数据
 	DEBUG_SYNC_C("row_search_rec_loop");
 	if (trx_is_interrupted(trx)) {
 		if (!spatial_search) {
@@ -5503,7 +5503,7 @@ wrong_offs:
 
 		/* fputs("Comparing rec and search tuple\n", stderr); */
                 // 如果search_tuple和rec不相等
-		if (0 != cmp_dtuple_rec(search_tuple, rec, offsets)) {                                                           //### 比较记录和【查询参数】，如果不相等，则结束查找
+		if (0 != cmp_dtuple_rec(search_tuple, rec, offsets)) {                                                           //### 等值匹配，比较记录和【查询参数】，如果不相等，则结束查找
 
 			if (set_also_gap_locks
 			    && !(srv_locks_unsafe_for_binlog
@@ -5996,7 +5996,7 @@ requires_clust_rec:
 	The latch will not be released until mtr_commit(&mtr). */
 
 	if ((match_mode == ROW_SEL_EXACT
-	     || prebuilt->n_rows_fetched >= MYSQL_FETCH_CACHE_THRESHOLD)
+	     || prebuilt->n_rows_fetched >= MYSQL_FETCH_CACHE_THRESHOLD)  // 数据预加载
 	    && prebuilt->select_lock_type == LOCK_NONE
 	    && !prebuilt->m_no_prefetch
 	    && !prebuilt->templ_contains_blob
@@ -6062,7 +6062,7 @@ requires_clust_rec:
 			}
 
 			if (next_buf != buf) {
-				row_sel_enqueue_cache_row_for_mysql(
+				row_sel_enqueue_cache_row_for_mysql(// 数据预加载
 					next_buf, prebuilt);
 			}
 		} else {
@@ -6163,7 +6163,7 @@ idx_cond_failed:
 
 	goto normal_return;
 
-next_rec:
+next_rec:                                                                                                               // 获取下一条记录
 
 	if (end_loop >= 99
 	    && need_vrow && vrow == NULL && prev_rec != NULL) {
@@ -6270,7 +6270,7 @@ next_rec:
 		}
 	}
 
-	if (moves_up) {
+	if (moves_up) {                                                                                                     //升序遍历
 		bool	 move;
 
 		if (spatial_search) {
@@ -6296,7 +6296,7 @@ not_moved:
 			goto normal_return;
 		}
 	} else {
-		if (UNIV_UNLIKELY(!btr_pcur_move_to_prev(pcur, &mtr))) {
+		if (UNIV_UNLIKELY(!btr_pcur_move_to_prev(pcur, &mtr))) {                                                        //降序遍历
 			goto not_moved;
 		}
 	}

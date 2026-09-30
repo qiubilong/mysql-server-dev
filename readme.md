@@ -52,15 +52,16 @@ CALL insert_t1_500();
 
 ------------------------------------------------------------
 
-select * from t1 where id = 100;
-select * from t1 where id < 100;
-select * from t1 where id > 100;
-select * from t1;select * from t1 order by id asc;
-select * from t1 order by id desc;
-select * from t1 where id < 100 order by id desc;
-select * from t1 where id < 100 order by id asc;
-select * from t1 where id > 100 order by id asc;
-select * from t1 where id > 100 order by id desc;
+select * from t1 where id = 100;                       从上到下定位游标
+select * from t1 where id < 100;                       从左到右遍历 -- 升序       
+select * from t1 where id > 100;                       从上到下定位 -- 升序 
+select * from t1;                                      从左到右遍历 -- 升序
+select * from t1 order by id asc;                      从左到右遍历 -- 升序
+select * from t1 order by id desc;                               从右到左遍历 -- 降序
+select * from t1 where id < 100 order by id desc;                从上到下定位 -- 降序
+select * from t1 where id < 100 order by id asc;       从左到右遍历 -- 升序
+select * from t1 where id > 100 order by id asc;       从上到下定位 -- 升序 
+select * from t1 where id > 100 order by id desc;                 从右到左遍历 -- 降序
 select * from t1 where id in (6,3,4);
 
 ````

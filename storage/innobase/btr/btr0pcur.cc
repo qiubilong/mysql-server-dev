@@ -587,7 +587,7 @@ Moves the persistent cursor to the previous record in the tree. If no records
 are left, the cursor stays 'before first in tree'.
 @return TRUE if the cursor was not before first in tree */
 ibool
-btr_pcur_move_to_prev(
+btr_pcur_move_to_prev(                                                                                                  //降序遍历，从右到左遍历，移动游标
 /*==================*/
 	btr_pcur_t*	cursor,	/*!< in: persistent cursor; NOTE that the
 				function may release the page latch */
@@ -610,7 +610,7 @@ btr_pcur_move_to_prev(
 		return(TRUE);
 	}
 
-	btr_pcur_move_to_prev_on_page(cursor);
+	btr_pcur_move_to_prev_on_page(cursor);                                                                              //降序遍历，从右到左遍历，移动游标
 
 	return(TRUE);
 }

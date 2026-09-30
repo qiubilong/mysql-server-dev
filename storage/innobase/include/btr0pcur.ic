@@ -282,7 +282,7 @@ btr_pcur_move_to_prev_on_page(
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 
-	page_cur_move_to_prev(btr_pcur_get_page_cur(cursor));
+	page_cur_move_to_prev(btr_pcur_get_page_cur(cursor));                                                               //降序遍历，从右到左遍历，移动游标
 
 	cursor->old_stored = false;
 }
@@ -486,7 +486,7 @@ Opens an persistent cursor to an index tree without initializing the
 cursor. */
 UNIV_INLINE
 void
-btr_pcur_open_with_no_init_func(                                                                                        // ### 遍历B+树，根据search_tuple中指定的查询字段和值，根据mode找到第一个符合条件的记录
+btr_pcur_open_with_no_init_func(                                                                                        // ### 从上到下遍历B+树定位游标，根据search_tuple中指定的查询字段和值，根据mode找到第一个符合条件的记录
 /*============================*/
 	dict_index_t*	index,	/*!< in: index */
 	const dtuple_t*	tuple,	/*!< in: tuple on which search done */
