@@ -3485,7 +3485,7 @@ interface.
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
 static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
-row_sel_get_clust_rec_for_mysql(
+row_sel_get_clust_rec_for_mysql(                                                                                        // 主键回表查询 -- 在主键索引B+树查询完整记录
 /*============================*/
 	row_prebuilt_t*	prebuilt,/*!< in: prebuilt struct in the handle */
 	dict_index_t*	sec_index,/*!< in: secondary index where rec resides */
@@ -3518,12 +3518,12 @@ row_sel_get_clust_rec_for_mysql(
 	*out_rec = NULL;
 	trx = thr_get_trx(thr);
 
-	row_build_row_ref_in_tuple(prebuilt->clust_ref, rec,
+	row_build_row_ref_in_tuple(prebuilt->clust_ref, rec,// 设置 查询条件，主键id
 				   sec_index, *offsets, trx);
 
 	clust_index = dict_table_get_first_index(sec_index->table);
 
-	btr_pcur_open_with_no_init(clust_index, prebuilt->clust_ref,
+	btr_pcur_open_with_no_init(clust_index, prebuilt->clust_ref,                                                         // 自上而下搜索主键索引记录
 				   PAGE_CUR_LE, BTR_SEARCH_LEAF,
 				   prebuilt->clust_pcur, 0, mtr);
 
@@ -4832,7 +4832,7 @@ row_search_mvcc(                                                                
 			prebuilt->fetch_cache_first = 0;
 
 		} else if (UNIV_LIKELY(prebuilt->n_fetch_cached > 0)) {
-			row_sel_dequeue_cached_row_for_mysql(buf, prebuilt);
+			row_sel_dequeue_cached_row_for_mysql(buf, prebuilt);// 遍历查询时可能已经 预取缓存
 
 			prebuilt->n_rows_fetched++;
 
@@ -5880,7 +5880,7 @@ locks_ok:
 	/* Get the clustered index record if needed, if we did not do the
 	search using the clustered index. */
         // need_to_access_clustered表示需不需要访问聚集索引，也就是需不需要回表，1表示需要回表，0表示不需要回表
-	if (index != clust_index && prebuilt->need_to_access_clustered) {
+	if (index != clust_index && prebuilt->need_to_access_clustered) {                                                   //非聚集索引，回表判断
 
 requires_clust_rec:
 		ut_ad(index != clust_index);
@@ -5900,7 +5900,7 @@ requires_clust_rec:
 		'clust_rec'. Note that 'clust_rec' can be an old version
 		built for a consistent read. */
                 // 从聚集索引上找到对应记录，回表
-		err = row_sel_get_clust_rec_for_mysql(prebuilt, index, rec,                                                     // 回表查询
+		err = row_sel_get_clust_rec_for_mysql(prebuilt, index, rec,                                                     // 主键回表查询 -- 得到主键id，再从聚集索引中查具体记录
 						      thr, &clust_rec,
 						      &offsets, &heap,
 						      need_vrow ? &vrow : NULL,
@@ -6163,7 +6163,7 @@ idx_cond_failed:
 
 	goto normal_return;
 
-next_rec:                                                                                                               // 获取下一条记录
+next_rec:                                                                                                               // 游标指向下一条记录
 
 	if (end_loop >= 99
 	    && need_vrow && vrow == NULL && prev_rec != NULL) {
@@ -6296,7 +6296,7 @@ not_moved:
 			goto normal_return;
 		}
 	} else {
-		if (UNIV_UNLIKELY(!btr_pcur_move_to_prev(pcur, &mtr))) {                                                        //降序遍历
+		if (UNIV_UNLIKELY(!btr_pcur_move_to_prev(pcur, &mtr))) {                                                        //### 降序遍历，修改游标
 			goto not_moved;
 		}
 	}

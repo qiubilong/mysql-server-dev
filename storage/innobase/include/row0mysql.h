@@ -623,7 +623,7 @@ Innobase and MySQL. */
 
 struct mysql_row_templ_t {
 	ulint	col_no;			/*!< column number of the column */
-	ulint	rec_field_no;		/*!< field number of the column in an
+	ulint	rec_field_no;		/*!< field number of the column in an                                                   // 索引中当前字段的编号
 					Innobase record in the current index;
 					not defined if template_type is
 					ROW_MYSQL_WHOLE_ROW */
@@ -723,7 +723,7 @@ struct row_prebuilt_t {
 	unsigned	null_bitmap_len:10;/*!< number of bytes in the SQL NULL
 					bitmap at the start of a row in the
 					MySQL format */
-	unsigned	need_to_access_clustered:1; /*!< if we are fetching
+	unsigned	need_to_access_clustered:1; /*!< if we are fetching                                                     // 主键回表 标记
 					columns through a secondary index
 					and at least one column is not in
 					the secondary index, then this is

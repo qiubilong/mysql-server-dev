@@ -414,7 +414,7 @@ private:
 class Filesort_info
 {
   /// Buffer for sorting keys.
-  Filesort_buffer filesort_buffer;
+  Filesort_buffer filesort_buffer;                                                                                      //文件排序缓存
 
 public:
   IO_CACHE *io_cache;             ///< If sorted through filesort

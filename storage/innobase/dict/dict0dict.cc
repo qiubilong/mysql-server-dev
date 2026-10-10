@@ -997,7 +997,7 @@ dict_index_get_nth_col_or_prefix_pos(
 		return(dict_col_get_clust_pos(col, index));
 	}
 
-	n_fields = dict_index_get_n_fields(index);
+	n_fields = dict_index_get_n_fields(index);                                                                          //遍历索引字段，包含隐藏主键id，例如 KEY `a` (`a`)，默认包含主键id
 
 	for (pos = 0; pos < n_fields; pos++) {
 		field = dict_index_get_nth_field(index, pos);
@@ -1009,7 +1009,7 @@ dict_index_get_nth_col_or_prefix_pos(
 		}
 	}
 
-	return(ULINT_UNDEFINED);
+	return(ULINT_UNDEFINED);                                                                                            //索引字段不包含查询的字段，需要回表
 }
 
 #ifndef UNIV_HOTBACKUP

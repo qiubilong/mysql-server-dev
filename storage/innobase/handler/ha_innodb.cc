@@ -6944,7 +6944,7 @@ build_template_field(
 		if (dict_index_is_clust(index)) {
 			templ->rec_field_no = templ->clust_rec_field_no;
 		} else {
-			templ->rec_field_no = dict_index_get_nth_col_pos(
+			templ->rec_field_no = dict_index_get_nth_col_pos(                                                           //辅助索引中，当前字段的编号，不存在时返回ULINT_UNDEFINED，需要主键回表
 						index, i);
 		}
 	} else {
@@ -6998,7 +6998,7 @@ build_template_field(
 
 	if (!dict_index_is_clust(index)
 	    && templ->rec_field_no == ULINT_UNDEFINED) {
-		prebuilt->need_to_access_clustered = TRUE;
+		prebuilt->need_to_access_clustered = TRUE;                                                                      //存在【辅助索引】字段不包含查询的字段，需要主键回表
 	}
 
 	/* For spatial index, we need to access cluster index. */
@@ -7030,7 +7030,7 @@ Builds a 'template' to the m_prebuilt struct. The template is used in fast
 retrieval of just those column values MySQL needs in its processing. */
 
 void
-ha_innobase::build_template(
+ha_innobase::build_template(                                                                                            //查询【回表】判断
 /*========================*/
 	bool		whole_row)	/*!< in: true=ROW_MYSQL_WHOLE_ROW,
 					false=ROW_MYSQL_REC_FIELDS */
@@ -7310,7 +7310,7 @@ ha_innobase::build_template(
 		/* No index condition pushdown */
 		m_prebuilt->idx_cond = NULL;
 
-		for (i = 0; i < n_fields; i++) {
+		for (i = 0; i < n_fields; i++) {                                                                                // 遍历表字段
 			const Field*	field;
 
 			if (whole_row) {
@@ -7345,8 +7345,8 @@ ha_innobase::build_template(
 						false);
 				}
 
-                                // 判断当前字段是不是当前SQL需要的
-				field = build_template_needs_field(
+
+				field = build_template_needs_field(                                                                     // 判断当前字段是不是当前SQL需要的，不需要返回null
 					contain,
 					m_prebuilt->read_just_key,
 					fetch_all_in_key,
@@ -7360,7 +7360,7 @@ ha_innobase::build_template(
 				}
 			}
 
-			templ = build_template_field(
+			templ = build_template_field(                                                                               // 当前sql需要该字段，而且辅助索引中不存在，则设置需要回表标志
 				m_prebuilt, clust_index, index,
 				table, field, i - num_v, num_v);
 			if (templ->is_virtual) {
@@ -13738,7 +13738,7 @@ filesort.cc.
 @return upper bound of rows */
 
 ha_rows
-ha_innobase::estimate_rows_upper_bound()
+ha_innobase::estimate_rows_upper_bound()                                                                                // 估算表记录行数
 /*====================================*/
 {
 	const dict_index_t*	index;
@@ -13764,7 +13764,7 @@ ha_innobase::estimate_rows_upper_bound()
 	ut_a(stat_n_leaf_pages > 0);
 
 	local_data_file_length =
-		((ulonglong) stat_n_leaf_pages) * UNIV_PAGE_SIZE;
+		((ulonglong) stat_n_leaf_pages) * UNIV_PAGE_SIZE; // 叶子节点数 * 16k
 
 	/* Calculate a minimum length for a clustered index record and from
 	that an upper bound for the number of rows. Since we only calculate
@@ -13772,7 +13772,7 @@ ha_innobase::estimate_rows_upper_bound()
 	factor, we must add a safety factor 2 in front of the formula below. */
 
 	estimate = 2 * local_data_file_length
-		/ dict_index_calc_min_rec_len(index);
+		/ dict_index_calc_min_rec_len(index); // 叶子节点数 * 16k / 每行大小，得出记录行数，乘以2估算数量，因为叶子节点数不一定准
 
 	m_prebuilt->trx->op_info = "";
 

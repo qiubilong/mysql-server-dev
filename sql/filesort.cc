@@ -246,7 +246,7 @@ static void trace_filesort_information(Opt_trace_context *trace,
 
 bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
               ha_rows *examined_rows, ha_rows *found_rows,
-              ha_rows *returned_rows)
+              ha_rows *returned_rows)                                                                                   // order by 文件排序 -- 尽量内存排序(256k) > 内存主键排序+回表 > 文件归并排序
 {
   int error;
   ulong memory_available= thd->variables.sortbuff_size;
@@ -324,7 +324,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     thd->inc_status_sort_scan();
 
   // If number of rows is not known, use as much of sort buffer as possible. 
-  num_rows= table->file->estimate_rows_upper_bound();
+  num_rows= table->file->estimate_rows_upper_bound();                                                                   //估算记录行数
 
   if (multi_byte_charset &&
       !(param.tmp_buffer= (char*) my_malloc(key_memory_Sort_param_tmp_buffer,
@@ -361,7 +361,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   }
   else
   {
-    DBUG_PRINT("info", ("filesort PQ is not applicable"));
+    DBUG_PRINT("info", ("filesort PQ is not applicable")); //非边取边排，默认全部取完记录后统一排序
     filesort->using_pq= false;
     param.using_pq= false;
 
@@ -369,7 +369,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
       When sorting using priority queue, we cannot use packed addons.
       Without PQ, we can try.
     */
-    param.try_to_pack_addons(thd->variables.max_length_for_sort_data);
+    param.try_to_pack_addons(thd->variables.max_length_for_sort_data); //max_length_for_sort_data=1k
 
     /*
       We need space for at least one record from each merge chunk, i.e.
@@ -390,13 +390,13 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     if (num_rows < MERGEBUFF2)
       num_rows= MERGEBUFF2;
 
-    while (memory_available >= min_sort_memory)
+    while (memory_available >= min_sort_memory) //memory_available=sort_buffer_size=256k
     {
-      ha_rows keys= memory_available / (param.rec_length + sizeof(char*));
+      ha_rows keys= memory_available / (param.rec_length + sizeof(char*)); //param.rec_length就是参与排序字段的长度，计算出可以存储多少记录，取最小值，按需分配内存
       // If the table is empty, allocate space for one row.
       param.max_keys_per_buffer= (uint) min(num_rows > 0 ? num_rows : 1, keys);
 
-      table_sort.alloc_sort_buffer(param.max_keys_per_buffer, param.rec_length);
+      table_sort.alloc_sort_buffer(param.max_keys_per_buffer, param.rec_length);                              //按需分配排序内存sortBuffer，不超过最大值sort_buffer_size=256k
       if (table_sort.sort_buffer_size() > 0)
         break;
       ulong old_memory_available= memory_available;
@@ -422,7 +422,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   // New scope, because subquery execution must be traced within an array.
   {
     Opt_trace_array ota(trace, "filesort_execution");
-    num_rows= find_all_keys(&param, tab,
+    num_rows= find_all_keys(&param, tab,                                                                                //1、查找所有记录，写入sortBuffer中,返回记录总数，all_keys就是参与排序的字段，比如select * 就是所有字段
                             &table_sort,
                             &chunk_file,
                             &tempfile,
@@ -448,7 +448,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 
   if (num_chunks == 0)                   // The whole set is in memory
   {
-    if (save_index(&param, (uint) num_rows, &table_sort))
+    if (save_index(&param, (uint) num_rows, &table_sort))                                                               //2、可以直接在内存排序
       goto err;
   }
   else
@@ -479,7 +479,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     param.max_keys_per_buffer=
       table_sort.sort_buffer_size() / param.rec_length;
 
-    if (merge_many_buff(&param,
+    if (merge_many_buff(&param,                                                                                         //2、sortBuffer不够，需要【归并排序】多个有序临时文件
                         table_sort.get_raw_buf(),
                         table_sort.merge_chunks,
                         &num_chunks,
@@ -867,7 +867,7 @@ static const Item::enum_walk walk_subquery=
     HA_POS_ERROR on error.
 */
 
-static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
+static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,                                                       //1、查找所有记录，写入sortBuffer中，all_keys就是参与排序的字段，比如select * 就是所有字段
                              Filesort_info *fs_info,
                              IO_CACHE *chunk_file,
                              IO_CACHE *tempfile,
@@ -983,7 +983,7 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
     {
       DBUG_EXECUTE_IF("bug19656296", DBUG_SET("+d,ha_rnd_next_deadlock"););
       {
-	error= file->ha_rnd_next(sort_form->record[0]);
+	error= file->ha_rnd_next(sort_form->record[0]);                                                                       // 不断调用【row_search_mvcc】查询一行记录，记录存在record[0]中
 	if (!flag)
 	{
 	  my_store_ptr(ref_pos,ref_length,record); // Position to row
@@ -1011,16 +1011,16 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
       param->examined_rows++;
 
     // 这里会进行where条件的过滤
-    if (!error && !qep_tab->skip_record(thd, &skip_record) && !skip_record)
+    if (!error && !qep_tab->skip_record(thd, &skip_record) && !skip_record)// 【row_search_mvcc】查询一行记录后，where 条件过滤
     {
       ++(*found_rows);
-      if (pq)
+      if (pq)/* 非边取边排序，相当于优先级队列 */
         pq->push(ref_pos);
       else
       {
         if (fs_info->isfull())
         {
-          if (write_keys(param, fs_info, idx, chunk_file, tempfile))
+          if (write_keys(param, fs_info, idx, chunk_file, tempfile))                                                   //排序缓存sortBuffer已满，先排序写入临时文件，清除缓存重复利用
           {
             num_records= HA_POS_ERROR;
             goto cleanup;
@@ -1032,7 +1032,7 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
           fs_info->init_next_record_pointer();
         uchar *start_of_rec= fs_info->get_next_record_pointer();
 
-        const uint rec_sz= param->make_sortkey(start_of_rec, ref_pos);
+        const uint rec_sz= param->make_sortkey(start_of_rec, ref_pos);                                                  //将记录参与字段sortKey 写入sortBuffer，当所有参与字段长度>1k时，只存主键id+排序字段，排序后再回表，避免文件排序
         if (packed_addon_fields && rec_sz != param->rec_length)
           fs_info->adjust_next_record_pointer(rec_sz);
 
@@ -1129,7 +1129,7 @@ write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
   Merge_chunk merge_chunk;
   DBUG_ENTER("write_keys");
 
-  fs_info->sort_buffer(param, count);
+  fs_info->sort_buffer(param, count); //先排序，再将结果写入临时文件
 
   if (!my_b_inited(tempfile) &&
       open_cached_file(tempfile, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
@@ -1274,7 +1274,7 @@ make_json_sort_key(Item *item, uchar *to, size_t length, ulonglong *hash)
 }
 
 
-uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
+uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)                                                          //将记录参与字段sortKey 写入sortBuffer，当所有参与字段长度>1k时，只存主键id+排序字段，排序后再回表，避免文件排序
 {
   uchar *orig_to= to;
   const st_sort_field *sort_field;
@@ -1514,7 +1514,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
     to+= 8;
   }
 
-  if (using_addon_fields())
+  if (using_addon_fields())                                                                                             //sortBuffer写入记录参与字段
   {
     /* 
       Save field values appended to sorted fields.
@@ -1555,7 +1555,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
   else
   {
     /* Save filepos last */
-    memcpy(to, ref_pos, ref_length);
+    memcpy(to, ref_pos, ref_length);                                                                                    //仅写记录主键，排序后再回表，避免sortBuffer用满，导致归并排序临时文件
     to+= ref_length;
   }
   return to - orig_to;
@@ -1637,7 +1637,7 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort)
   uchar *to;
   DBUG_ENTER("save_index");
 
-  table_sort->sort_buffer(param, count);
+  table_sort->sort_buffer(param, count);                                                                                //内存排序
 
   if (param->using_addon_fields())
   {
@@ -1848,7 +1848,7 @@ bool check_if_pq_applicable(Opt_trace_context *trace,
                       output: the number of chunks left in the output file.
   @param t_file       Where to store the result.
 */
-int merge_many_buff(Sort_param *param, Sort_buffer sort_buffer,
+int merge_many_buff(Sort_param *param, Sort_buffer sort_buffer,                                                         //多个有序文件归并排序
                     Merge_chunk_array chunk_array,
                     size_t *p_num_chunks, IO_CACHE *t_file)
 {
@@ -1874,7 +1874,7 @@ int merge_many_buff(Sort_param *param, Sort_buffer sort_buffer,
     if (reinit_io_cache(to_file,WRITE_CACHE,0L,0,0))
       goto cleanup;
     Merge_chunk *last_chunk= chunk_array.begin();;
-    for (i=0 ; i < num_chunks - MERGEBUFF * 3 / 2 ; i+= MERGEBUFF)
+    for (i=0 ; i < num_chunks - MERGEBUFF * 3 / 2 ; i+= MERGEBUFF)                                                      //多个有序文件归并排序
     {
       if (merge_buffers(param,                  // param
                         from_file,              // from_file

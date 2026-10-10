@@ -224,7 +224,7 @@ size_t try_reserve(std::pair<type*, ptrdiff_t> *buf, ptrdiff_t size)
 
 } // namespace
 
-void Filesort_buffer::sort_buffer(const Sort_param *param, uint count)
+void Filesort_buffer::sort_buffer(const Sort_param *param, uint count)                                                  //排序缓存，执行排序
 {
   m_sort_keys= get_sort_keys();
 
@@ -256,7 +256,7 @@ void Filesort_buffer::sort_buffer(const Sort_param *param, uint count)
   {
     if (param->sort_length < 10)
     {
-      std::sort(m_sort_keys, m_sort_keys + count,
+      std::sort(m_sort_keys, m_sort_keys + count,                                                                   //执行排序
                 Mem_compare(param->sort_length));
       return;
     }

@@ -522,7 +522,7 @@ page_cur_search_with_match(                                                     
 	slots come to the distance 1 of each other */
 
 	while (up - low > 1) {
-		mid = (low + up) / 2;                                                                                           // 1、页目录二分查找，找到第一个大于【查询值】的页目录的上一个页目录
+		mid = (low + up) / 2;                                                                                           // 1、页目录二分查找，找到第一个【查询值】小于的页目录的上一个页目录
 		slot = page_dir_get_nth_slot(page, mid);
 		mid_rec = page_dir_slot_get_rec(slot);
 
@@ -848,7 +848,7 @@ up_slot_match:
 	/* Perform linear search until the upper and lower records come to
 	distance 1 of each other. */
 
-	while (page_rec_get_next_const(low_rec) != up_rec) {                                                                // 从左到右，遍历记录链表
+	while (page_rec_get_next_const(low_rec) != up_rec) {                                                                // 目录组内，从左到右，遍历记录链表
 
 		mid_rec = page_rec_get_next_const(low_rec);
 
@@ -914,7 +914,7 @@ up_rec_match:
 	}
 
 	if (mode <= PAGE_CUR_GE) {
-		page_cur_position(up_rec, block, cursor);                                                                       // 等值，大于都是走升序查询，返回>=【匹配值】的游标
+		page_cur_position(up_rec, block, cursor);                                                                       // 等值、大于都是走升序查询，返回>=【匹配值】的游标
 	} else {
 		page_cur_position(low_rec, block, cursor);
 	}
