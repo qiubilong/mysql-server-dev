@@ -48,8 +48,13 @@ CREATE TABLE `t2` (  -- t2表可以模拟主键排序再回表
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=501 DEFAULT CHARSET=utf8mb4;
 ````
- ### 去重 group by
+
+ ### 去重 groupby  内存临时表hash > 【磁盘临时表】 --- 必要时增加max_heap_table_size，尽量内存去重
+     -- 非函数计算 sql\sql_executor.cc:end_write   ---例如 select a from t1 group by a;
+     -- 函数计算   sql\sql_executor.cc:end_update  ---例如 select a,count(*) from t1 group by a;
+     -- 【内存临时表】超过 max_heap_table_size=16M，转换为【磁盘临时表】
      -- mysql8不会再默认排序，mysql5.7需要指定order by null关闭排序
+
 
 ````sql
 CREATE TABLE `t1` (

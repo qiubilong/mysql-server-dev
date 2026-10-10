@@ -36,7 +36,7 @@ static uchar *next_free_record_pos(HP_SHARE *info);
 static HASH_INFO *hp_find_free_hash(HP_SHARE *info, HP_BLOCK *block,
 				     ulong records);
 
-int heap_write(HP_INFO *info, const uchar *record)
+int heap_write(HP_INFO *info, const uchar *record)                                                                      //将【分组记录】插入【内存临时表hash】
 {
   HP_KEYDEF *keydef, *end;
   uchar *pos;
@@ -49,14 +49,14 @@ int heap_write(HP_INFO *info, const uchar *record)
     DBUG_RETURN(EACCES);
   }
 #endif
-  if (!(pos=next_free_record_pos(share)))
+  if (!(pos=next_free_record_pos(share)))                                                                               //检查【内存临时表】内存超过阈值16M，返回HA_ERR_RECORD_FILE_FULL，创建【磁盘临时表】
     DBUG_RETURN(my_errno());
   share->changed=1;
 
   for (keydef = share->keydef, end = keydef + share->keys; keydef < end;
        keydef++)
-  {
-    if ((*keydef->write_key)(info, keydef, record, pos))
+  {              //storage\heap\hp_write.c:hp_write_key
+    if ((*keydef->write_key)(info, keydef, record, pos))                                                                // 将【分组记录】插入【内存临时表hash】
       goto err;
   }
 
@@ -138,7 +138,7 @@ int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
 
 	/* Find where to place new record */
 
-static uchar *next_free_record_pos(HP_SHARE *info)
+static uchar *next_free_record_pos(HP_SHARE *info)                                                                      //【内存临时表】内存超过阈值16M，返回HA_ERR_RECORD_FILE_FULL，创建【磁盘临时表】
 {
   int block_pos;
   uchar *pos;
@@ -155,8 +155,8 @@ static uchar *next_free_record_pos(HP_SHARE *info)
   }
   if (!(block_pos=(info->records % info->block.records_in_block)))
   {
-    if ((info->records > info->max_records && info->max_records) ||
-        (info->data_length + info->index_length >= info->max_table_size))
+    if ((info->records > info->max_records && info->max_records) || //【内存临时表】内存超过阈值16M，返回HA_ERR_RECORD_FILE_FULL，创建【磁盘临时表】
+        (info->data_length + info->index_length >= info->max_table_size)) // max_table_size = 16M = max_heap_table_size
     {
       set_my_errno(HA_ERR_RECORD_FILE_FULL);
       DBUG_RETURN(NULL);
@@ -216,7 +216,7 @@ static inline void set_hash_key(HASH_INFO *key, HASH_INFO *next_key,
     still added and the caller must call hp_delete_key for it.
 */
 
-int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
+int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,                                                                     //将【分组记录】插入内存临时表hash
 		 const uchar *record, uchar *recpos)
 {
   HP_SHARE *share = info->s;
@@ -364,7 +364,7 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
                                              share->records + 1));
   if (pos == empty)
   {
-    set_hash_key(pos, NULL, recpos, hash1);
+    set_hash_key(pos, NULL, recpos, hash1); // 分组记录不重复，直接插入hash表
     keyinfo->hash_buckets++;
   }
   else
@@ -394,7 +394,7 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
       {
 	if (! hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec, 1))
 	{
-          set_my_errno(HA_ERR_FOUND_DUPP_KEY);
+          set_my_errno(HA_ERR_FOUND_DUPP_KEY);                                                                          //分组记录重复
 	  DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);
 	}
       } while ((pos=pos->next_key));

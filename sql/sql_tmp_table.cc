@@ -2249,7 +2249,7 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
      FALSE - OK
      TRUE  - Error
 */
-bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
+bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)                                                                //创建innodb临时补
 {
   TABLE_SHARE *share= table->s;
 
@@ -2279,7 +2279,7 @@ bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
   }
 
   int error;
-  if ((error= table->file->create(share->table_name.str, table, &create_info)))
+  if ((error= table->file->create(share->table_name.str, table, &create_info)))                                         // ## 创建表入口 -- 创建用户表
   {
     table->file->print_error(error,MYF(0));    /* purecov: inspected */
     /*
@@ -2486,7 +2486,7 @@ free_tmp_table(THD *thd, TABLE *entry)
   replicated to the on-disk table - it's the caller's responsibility.
 */
 
-bool create_ondisk_from_heap(THD *thd, TABLE *table,
+bool create_ondisk_from_heap(THD *thd, TABLE *table,                                                                    //【内存临时表】内存超过阈值16M，创建【磁盘临时表】
                              MI_COLUMNDEF *start_recinfo,
                              MI_COLUMNDEF **recinfo, 
 			     int error, bool ignore_last_dup,
@@ -2551,7 +2551,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
   else if (share.db_type() == innodb_hton)
   {
     // 创建InnoDb临时表
-    if (create_innodb_tmp_table(&new_table, table->s->key_info))
+    if (create_innodb_tmp_table(&new_table, table->s->key_info))                                                        //【内存临时表】内存超过阈值16M，创建【磁盘临时表】
       goto err2;
   }
 

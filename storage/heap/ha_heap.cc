@@ -231,7 +231,7 @@ void ha_heap::update_key_stats()
 }
 
 
-int ha_heap::write_row(uchar * buf)
+int ha_heap::write_row(uchar * buf)                                                                                     //将【分组记录】插入【内存临时表】 > 【磁盘临时表】
 {
   int res;
   ha_statistic_increment(&SSV::ha_write_count);
@@ -240,7 +240,7 @@ int ha_heap::write_row(uchar * buf)
     if ((res= update_auto_increment()))
       return res;
   }
-  res= heap_write(file,buf);
+  res= heap_write(file,buf);                                                                                            //将【分组记录】插入【内存临时表】
   if (!res && (++records_changed*HEAP_STATS_UPDATE_THRESHOLD > 
                file->s->records))
   {
@@ -374,7 +374,7 @@ int ha_heap::rnd_init(bool scan)
   return scan ? heap_scan_init(file) : 0;
 }
 
-int ha_heap::rnd_next(uchar *buf)
+int ha_heap::rnd_next(uchar *buf)                                                                                       //遍历内存临时表
 {
   MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
                        TRUE);

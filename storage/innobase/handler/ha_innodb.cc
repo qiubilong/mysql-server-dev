@@ -12271,7 +12271,7 @@ create_table_info_t::allocate_trx()
 @param[in]	create_info	Create info (including create statement string).
 @return	0 if success else error number. */
 int
-ha_innobase::create(
+ha_innobase::create(                                                                                                    // ## 创建表入口 -- 创建用户表
 	const char*	name,
 	TABLE*		form,
 	HA_CREATE_INFO*	create_info)

@@ -8154,7 +8154,7 @@ int handler::ha_reset()
 }
 
 
-int handler::ha_write_row(uchar *buf)
+int handler::ha_write_row(uchar *buf)                                                                                   //将【分组记录】插入【内存临时表】 > 【磁盘临时表】
 {
   int error;
   Log_func *log_func= Write_rows_log_event::binlog_row_logging_function;
@@ -8175,7 +8175,7 @@ int handler::ha_write_row(uchar *buf)
                   DBUG_RETURN(HA_ERR_CRASHED););
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_WRITE_ROW, MAX_KEY, error,
-    { error= write_row(buf); })
+    { error= write_row(buf); })                                                                                         //将【分组记录】插入【内存临时表ha_heap】 > 【磁盘临时表ha_innodbase】
 
   MYSQL_INSERT_ROW_DONE(error);
   if (unlikely(error))
@@ -8189,7 +8189,7 @@ int handler::ha_write_row(uchar *buf)
 }
 
 
-int handler::ha_update_row(const uchar *old_data, uchar *new_data)
+int handler::ha_update_row(const uchar *old_data, uchar *new_data)                                                      //groupby 更新重复的【分组记录】
 {
   int error;
   assert(table_share->tmp_table != NO_TMP_TABLE ||
@@ -8216,7 +8216,7 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
                   return(HA_ERR_CRASHED););
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_UPDATE_ROW, active_index, error,
-    { error= update_row(old_data, new_data);})
+    { error= update_row(old_data, new_data);})                                                                          //groupby 更新重复的【分组记录】
 
   MYSQL_UPDATE_ROW_DONE(error);
   if (unlikely(error))

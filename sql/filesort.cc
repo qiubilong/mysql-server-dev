@@ -983,7 +983,7 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,               
     {
       DBUG_EXECUTE_IF("bug19656296", DBUG_SET("+d,ha_rnd_next_deadlock"););
       {
-	error= file->ha_rnd_next(sort_form->record[0]);                                                                       // 不断调用【row_search_mvcc】查询一行记录，记录存在record[0]中
+	error= file->ha_rnd_next(sort_form->record[0]);                                                                       //### 不断调用【row_search_mvcc】查询一行记录，记录存在record[0]中，groupby后默认的内存排序走storage\heap\ha_heap.cc:rnd_next获取记录
 	if (!flag)
 	{
 	  my_store_ptr(ref_pos,ref_length,record); // Position to row
@@ -1030,7 +1030,7 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,               
         }
         if (idx == 0)
           fs_info->init_next_record_pointer();
-        uchar *start_of_rec= fs_info->get_next_record_pointer();
+        uchar *start_of_rec= fs_info->get_next_record_pointer();//查看start_of_rec内存看结果
 
         const uint rec_sz= param->make_sortkey(start_of_rec, ref_pos);                                                  //将记录参与字段sortKey 写入sortBuffer，当所有参与字段长度>1k时，只存主键id+排序字段，排序后再回表，避免文件排序
         if (packed_addon_fields && rec_sz != param->rec_length)

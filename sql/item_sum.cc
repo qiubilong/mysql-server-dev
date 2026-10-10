@@ -2444,7 +2444,7 @@ void Item_sum_sum::reset_field()
 }
 
 
-void Item_sum_count::reset_field()
+void Item_sum_count::reset_field()                                                                                      //groupby【分组记录】未重复，count(*)统计初始化为1
 {
   uchar *res=result_field->ptr;
   longlong nr=0;
@@ -2550,14 +2550,14 @@ void Item_sum_sum::update_field()
 }
 
 
-void Item_sum_count::update_field()
+void Item_sum_count::update_field()                                                                                     // groupby 【分组记录】重复，count()统计 ++
 {
   longlong nr;
   uchar *res=result_field->ptr;
 
   nr=sint8korr(res);
   if (!args[0]->maybe_null || !args[0]->is_null())
-    nr++;
+    nr++;   // groupby 【分组记录】重复，count()统计 ++
   int8store(res,nr);
 }
 

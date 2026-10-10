@@ -485,23 +485,23 @@ bool setup_sum_funcs(THD *thd, Item_sum **func_ptr)
 
 
 static void
-init_tmptable_sum_functions(Item_sum **func_ptr)
+init_tmptable_sum_functions(Item_sum **func_ptr)                                                                        // groupby 【分组记录】重复，count()统计初始化为1
 {
   Item_sum *func;
   while ((func= *(func_ptr++)))
-    func->reset_field();
+    func->reset_field();// groupby 【分组记录】重复，count()统计初始化为1              item_sum_count::reset_field
 }
 
 
 /** Update record 0 in tmp_table from record 1. */
 
 static void
-update_tmptable_sum_func(Item_sum **func_ptr,
+update_tmptable_sum_func(Item_sum **func_ptr,                                                                           // groupby 【分组记录】重复，count()统计 ++
 			 TABLE *tmp_table MY_ATTRIBUTE((unused)))
 {
   Item_sum *func;
   while ((func= *(func_ptr++)))
-    func->update_field();
+    func->update_field(); // groupby数据重复，统计++            sql\item_sum.cc:item_sum_count
 }
 
 
@@ -3371,7 +3371,7 @@ bool check_unique_constraint(TABLE *table)
 
   /* ARGSUSED */
 static enum_nested_loop_state
-end_write(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
+end_write(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)                                                      //groupby 不需要函数统计 -- 例如 select a from t1 group by a;
 {
   TABLE *const table= qep_tab->table();
   DBUG_ENTER("end_write");
@@ -3397,11 +3397,11 @@ end_write(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
       if (!check_unique_constraint(table))
         goto end; // skip it
       // file可能是一个内存临时表，也可能是临时文件
-      if ((error=table->file->ha_write_row(table->record[0])))
+      if ((error=table->file->ha_write_row(table->record[0])))                                                          //### groupby【分组记录】插入，内存临时hash表（16M） > 磁盘临时表
       {
         if (table->file->is_ignorable_error(error))
 	  goto end;
-	if (create_ondisk_from_heap(join->thd, table,
+	if (create_ondisk_from_heap(join->thd, table,                                                                         // 创建【磁盘临时表】
                                     tmp_tbl->start_recinfo,
                                     &tmp_tbl->recinfo,
 				    error, TRUE, NULL))
@@ -3429,7 +3429,7 @@ end:
 /** Group by searching after group record and updating it if possible. */
 
 static enum_nested_loop_state
-end_update(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
+end_update(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)                                                     //groupby 需要函数统计 --例如 select a,count(*) from t1 group by a;
 {
   TABLE *const table= qep_tab->table();
   ORDER *group;
@@ -3476,7 +3476,7 @@ end_update(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
         group->buff[-1]= (char) group->field->is_null();
     }
     const uchar *key= tmp_tbl->group_buff;
-    if (!table->file->ha_index_read_map(table->record[1],
+    if (!table->file->ha_index_read_map(table->record[1],                                                               //判断【分组记录】是否重复
                                         key,
                                         HA_WHOLE_KEY,
                                         HA_READ_KEY_EXACT))
@@ -3486,8 +3486,8 @@ end_update(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
   {
     /* Update old record */
     restore_record(table, record[1]);
-    update_tmptable_sum_func(join->sum_funcs, table);
-    if ((error=table->file->ha_update_row(table->record[1],
+    update_tmptable_sum_func(join->sum_funcs, table);                                                                   //## groupby【分组记录】重复，count() 统计行数++
+    if ((error=table->file->ha_update_row(table->record[1],                                                             //更新重复的【分组记录】
                                           table->record[0])))
     {
       // Old and new records are the same, ok to ignore
@@ -3518,8 +3518,8 @@ end_update(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
     if (copy_funcs(tmp_tbl->items_to_copy, join->thd))
       DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
   }
-  init_tmptable_sum_functions(join->sum_funcs);
-  if ((error=table->file->ha_write_row(table->record[0])))
+  init_tmptable_sum_functions(join->sum_funcs);                                                                         //groupby【分组记录】未重复，count()统计行数初始化为1
+  if ((error=table->file->ha_write_row(table->record[0])))                                                              // ### 将【分组记录】插入【内存临时表】 > 【磁盘临时表】                                                  //将【分组记录】插入【内存临时表】 > 【磁盘临时表】
   {
     /*
       If the error is HA_ERR_FOUND_DUPP_KEY and the grouping involves a
@@ -3541,7 +3541,7 @@ end_update(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
         }
       }
     }
-    if (create_ondisk_from_heap(join->thd, table,
+    if (create_ondisk_from_heap(join->thd, table,                                                                       //【内存临时表】内存超过阈值16M，返回HA_ERR_RECORD_FILE_FULL，创建【磁盘临时表】
                                 tmp_tbl->start_recinfo,
                                 &tmp_tbl->recinfo,
 				error, FALSE, NULL))
