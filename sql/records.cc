@@ -317,7 +317,7 @@ bool init_read_record(READ_RECORD *info,THD *thd,
   else
   {
     DBUG_PRINT("info",("using rr_sequential"));
-    info->read_record=rr_sequential;
+    info->read_record=rr_sequential; //设置遍历记录方法
     if ((error= table->file->ha_rnd_init(1)))
       goto err;
     /* We can use record cache if we don't update dynamic length tables */
@@ -511,9 +511,9 @@ static int rr_index_desc(READ_RECORD *info)
 }
 
 
-int rr_sequential(READ_RECORD *info)                                                                                    //全表扫描
+int rr_sequential(READ_RECORD *info)                                                                                    //调用row_search_mvcc读取下一条记录
 {
-  int tmp;
+  int tmp; //0=Success
   while ((tmp=info->table->file->ha_rnd_next(info->record)))
   {
     /*

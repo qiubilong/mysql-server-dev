@@ -430,7 +430,7 @@ public:
   virtual void reset_cache(bool for_writing);
 
   /* Add a record into join buffer and call join_records() if it's full */
-  virtual enum_nested_loop_state put_record()
+  virtual enum_nested_loop_state put_record()                                                                           //join连表，将【驱动表】一条记录存储到joinBuffer中
   {
     if (put_record_in_cache())
       // 如果join buffer满了，则会直接执行join_records，相当于会对被驱动表直接做一次全表扫描

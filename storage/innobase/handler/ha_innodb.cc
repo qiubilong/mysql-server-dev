@@ -9092,7 +9092,7 @@ positioned using index_read.
 @return 0, HA_ERR_END_OF_FILE, or error number */
 
 int
-ha_innobase::general_fetch(
+ha_innobase::general_fetch(                                                                                             //调用row_search_mvcc读取下一条记录
 /*=======================*/
 	uchar*	buf,		/*!< in/out: buffer for next row in MySQL
 				format */
@@ -9327,7 +9327,7 @@ in a table scan).
 @return 0, HA_ERR_END_OF_FILE, or error number */
 
 int
-ha_innobase::rnd_next(
+ha_innobase::rnd_next(                                                                                                  //调用row_search_mvcc读取下一条记录
 /*==================*/
 	uchar*	buf)	/*!< in/out: returns the row in this buffer,
 			in MySQL format */
@@ -9347,7 +9347,7 @@ ha_innobase::rnd_next(
 
 		m_start_of_scan = false;
 	} else {
-		error = general_fetch(buf, ROW_SEL_NEXT, 0);
+		error = general_fetch(buf, ROW_SEL_NEXT, 0);                                                  //调用row_search_mvcc读取下一条记录
 	}
 
 	DBUG_RETURN(error);

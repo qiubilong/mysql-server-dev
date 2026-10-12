@@ -1228,9 +1228,9 @@ bool bka_skip_index_tuple(range_seq_t rseq, char *range_info)
     length of the written record data
 */
 
-uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
+uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)                                                         //join连表，将驱动表一条记录存储到joinBuffer中
 {
-  uchar *cp= pos;
+  uchar *cp= pos; // cp可查看内存结果
   uchar *init_pos= cp;
  
   records++;  /* Increment the counter of records in the cache */
@@ -1315,7 +1315,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   
   /* Now put the values of the remaining fields as soon as they are not nulls */ 
   copy_end= field_descr+fields;
-  for ( ; copy < copy_end; copy++)
+  for ( ; copy < copy_end; copy++) //记录字段写入缓存joinBuffer
   {
     Field *field= copy->field;
     if (field && field->maybe_null() && field->is_null())
@@ -1407,7 +1407,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   if (rec_len_ptr)
     store_rec_length(rec_len_ptr, (ulong) (cp-rec_len_ptr-size_of_rec_len));
   last_rec_pos= curr_rec_pos; 
-  end_pos= pos= cp;
+  end_pos= pos= cp;   // cp可查看内存结果
   *is_full= last_record;
   return (uint) (cp-init_pos);
 }
@@ -1466,7 +1466,7 @@ void JOIN_CACHE::reset_cache(bool for_writing)
     FALSE   otherwise
 */
 
-bool JOIN_CACHE::put_record_in_cache()
+bool JOIN_CACHE::put_record_in_cache()                                                                                  //join连表，将驱动表一条记录存储到joinBuffer中
 {
   bool is_full;
   uchar *link= 0;
@@ -1895,7 +1895,7 @@ void JOIN_CACHE::restore_last_record()
     return one of enum_nested_loop_state, except NESTED_LOOP_NO_MORE_ROWS.
 */ 
 
-enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
+enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)                                                         // 如果join buffer满了，则会直接执行join_records，相当于会对被驱动表直接做一次全表扫描
 {
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   DBUG_ENTER("JOIN_CACHE::join_records");
@@ -1935,7 +1935,7 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
     if (pfs_batch_update)
       qep_tab->table()->file->start_psi_batch_mode();
     /* Find all records from join_tab that match records from join buffer */
-    rc= join_matching_records(skip_last);
+    rc= join_matching_records(skip_last);                                                                               //### 遍历【被驱动表】，判断记录是否和joinBuffer匹配
     if (pfs_batch_update)
       qep_tab->table()->file->end_psi_batch_mode();
 
@@ -2069,7 +2069,7 @@ finish:
     return one of enum_nested_loop_state.
 */ 
 
-enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
+enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)                                            //join连表匹配 -- 每读取【被驱动表】记录，循环joinBuffer所有记录进行匹配
 {
   int error;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
@@ -2129,7 +2129,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
         reset_cache(false);
 
         /* Read each record from the join buffer and look for matches */
-        for (uint cnt= records - MY_TEST(skip_last) ; cnt; cnt--)
+        for (uint cnt= records - MY_TEST(skip_last) ; cnt; cnt--)                                                       //### 连表块循环，【被驱动表】一条记录，依次跟 joinBuffer中 的记录匹配
         { 
           /* 
             If only the first match is needed and it has been already found for
@@ -2138,14 +2138,14 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
           if (!check_only_first_match || !skip_record_if_match())
           {
             get_record();
-            rc= generate_full_extensions(get_curr_rec());
+            rc= generate_full_extensions(get_curr_rec());                                                               // 连表记录是否匹配，如果匹配则将结果发送到客户端缓存
             if (rc != NESTED_LOOP_OK)
               return rc;
           }
         }
       }
     }
-  } while (!(error= info->read_record(info)));
+  } while (!(error= info->read_record(info)));                                                                          //##### 继续读取【被驱动表t2】记录 -- rr_sequential --> row_search_mvcc
 
   if (error > 0)				// Fatal error
     rc= NESTED_LOOP_ERROR; 
@@ -2241,21 +2241,21 @@ bool JOIN_CACHE::set_match_flag_if_none(QEP_TAB *first_inner,
     return one of enum_nested_loop_state.
 */ 
 
-enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
+enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)                                             //### 连表块循环，读取被驱动表一条记录后，跟joinBuffer中的记录匹配
 {
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   /*
     Check whether the extended partial join record meets
     the pushdown conditions. 
   */
-  if (check_match(rec_ptr))
+  if (check_match(rec_ptr)) // 连表记录匹配
   {
     int res= 0;
     if (!qep_tab->check_weed_out_table ||
         !(res= do_sj_dups_weedout(join->thd, qep_tab->check_weed_out_table)))
     {
       set_curr_rec_link(rec_ptr);
-      rc= (qep_tab->next_select)(join, qep_tab + 1, 0);
+      rc= (qep_tab->next_select)(join, qep_tab + 1, 0); // 连表记录匹配，将结果发送到客户端缓存 -- end_send
       if (rc != NESTED_LOOP_OK)
       {
         reset_cache(true);

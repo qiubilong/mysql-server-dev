@@ -2948,7 +2948,7 @@ int handler::ha_rnd_end()
     @retval != 0  Error (error code returned)
 */
 
-int handler::ha_rnd_next(uchar *buf)
+int handler::ha_rnd_next(uchar *buf)                                                                                    //调用row_search_mvcc读取下一条记录
 {
   int result;
   DBUG_EXECUTE_IF("ha_rnd_next_deadlock", return HA_ERR_LOCK_DEADLOCK;);
@@ -2961,7 +2961,7 @@ int handler::ha_rnd_next(uchar *buf)
   m_update_generated_read_fields= table->has_gcol();
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY, result,
-    { result= rnd_next(buf); })
+    { result= rnd_next(buf); })        //调用row_search_mvcc读取下一条记录
   if (!result && m_update_generated_read_fields)
   {
     result= update_generated_read_fields(buf, table);

@@ -954,11 +954,11 @@ do_select(JOIN *join)                                                           
   {
     QEP_TAB *qep_tab= join->qep_tab + join->const_tables;
     assert(join->primary_tables);
-    // 0表示不是数据还没查完，end_of_records=0
-    error= join->first_select(join,qep_tab,0);
+
+    error= join->first_select(join,qep_tab,0);    // sub_select -- end_of_records=0 表示不是数据还没查完，
     if (error >= NESTED_LOOP_OK)
-      // 1表示数据查完了，end_of_records=1
-      error= join->first_select(join,qep_tab,1);
+
+      error= join->first_select(join,qep_tab,1);   // sub_select -- end_of_records=1 表示数据查完了，
   }
 
   join->thd->current_found_rows= join->send_records;
@@ -1056,7 +1056,7 @@ do_select(JOIN *join)                                                           
 */
 
 enum_nested_loop_state
-sub_select_op(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
+sub_select_op(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)                                                        //join连表，将驱动表一条记录存储到joinBuffer中 or 【被驱动表】直接走索引将匹配发送客户端缓存
 {
   DBUG_ENTER("sub_select_op");
 
@@ -1075,7 +1075,7 @@ sub_select_op(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
 
   if (end_of_records)
   {
-    rc= op->end_send();
+    rc= op->end_send();                                                                                                 //2、 驱动表查询结束，join_matching_records遍历【被驱动表】记录是否和joinBuffer中的记录匹配，符合则将记录发送到客户端结果缓存 --
     if (rc >= NESTED_LOOP_OK)
       rc= sub_select(join, qep_tab, end_of_records);
     DBUG_RETURN(rc);
@@ -1088,8 +1088,8 @@ sub_select_op(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
     enabled.
   */
   assert(!qep_tab->dynamic_range());
-  // 将结果存放到临时表中
-  rc= op->put_record();
+  // 将结果存放到临时表中， op.JoinCache.pos查看内存结果
+  rc= op->put_record();                                                                                                 //1、join连表，将驱动表一条记录存储到joinBuffer中
 
   DBUG_RETURN(rc);
 }
@@ -1223,14 +1223,14 @@ sub_select_op(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
 */
 
 enum_nested_loop_state
-sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
+sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)                                                      //join连表查询 ， 扫描驱动表一条记录  -- where过滤  --> （存入joinBuffer） --> 被驱动表匹配 -->发送结果缓存
 {
   DBUG_ENTER("sub_select");
 
   qep_tab->table()->reset_null_row();
 
   if (end_of_records)
-  {
+  {   // 2、 步骤2 end_of_records=1 表示数据查完了 --- 调用 sub_select_op.join_matching_records 遍历【被驱动表】匹配 joinBuffer，发送客户端结果
     enum_nested_loop_state nls=
       (*qep_tab->next_select)(join,qep_tab+1,end_of_records);
     DBUG_RETURN(nls);
@@ -1277,7 +1277,7 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
   const bool pfs_batch_update= qep_tab->pfs_batch_update(join);
   if (pfs_batch_update)
     qep_tab->table()->file->start_psi_batch_mode();
-  while (rc == NESTED_LOOP_OK && join->return_tab >= qep_tab_idx)
+  while (rc == NESTED_LOOP_OK && join->return_tab >= qep_tab_idx) // 循环读取驱动表记录
   {
     int error;
     if (in_first_read)
@@ -1286,15 +1286,15 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
       error= (*qep_tab->read_first_record)(qep_tab);
     }
     else
-      error= info->read_record(info);
+      error= info->read_record(info);                                                                                   //1、循环调用row_search_mvcc读取下一条记录 -- rr_sequential
 
     DBUG_EXECUTE_IF("bug13822652_1", join->thd->killed= THD::KILL_QUERY;);
 
-    if (error > 0 || (join->thd->is_error()))   // Fatal error
+    if (error > 0 || (join->thd->is_error()))
       rc= NESTED_LOOP_ERROR;
     else if (error < 0)
       break;
-    else if (join->thd->killed)			// Aborted by user
+    else if (join->thd->killed)
     {
       join->thd->send_kill_message();
       rc= NESTED_LOOP_KILLED;
@@ -1304,8 +1304,7 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
       if (qep_tab->keep_current_rowid)
         qep_tab->table()->file->position(qep_tab->table()->record[0]);
 
-      // 会对从innodb查出来的数据判断where条件是否满足
-      rc= evaluate_join_record(join, qep_tab);
+      rc= evaluate_join_record(join, qep_tab);                                                                          // 会对从innodb查出来的数据判断where条件是否满足, （驱动表）如果满足，join连表时将符合条件的记录存储到joinBuffer
     }
   }
 
@@ -1485,7 +1484,7 @@ static int do_sj_reset(SJ_TMP_TABLE *sj_tbl)
 */
 
 static enum_nested_loop_state
-evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
+evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)                                                                // 会对从innodb查出来的数据判断where条件是否满足
 {
   bool not_used_in_distinct= qep_tab->not_used_in_distinct;
   ha_rows found_records=join->found_records;
@@ -1500,8 +1499,8 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
 
   if (condition)
   {
-    // 判断查出来的记录是否符合where条件
-    found= MY_TEST(condition->val_int());
+
+    found= MY_TEST(condition->val_int());                                                                               //### 判断查出来的记录是否符合where条件
 
     if (join->thd->killed)
     {
@@ -1648,14 +1647,14 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
     DBUG_PRINT("counts", ("evaluate_join_record join->examined_rows++: %lu",
                           (ulong) join->examined_rows));
 
-    if (found)
+    if (found)                                                                                                          // where 条件满足
     {
       enum enum_nested_loop_state rc;
       // A match is found for the current partial join prefix.
       qep_tab->found_match= true;
 
-      // next_select表示从InnoDB中获取到数据后之后的处理，比如group by时，把group by对应的字段值插入到临时表中
-      rc= (*qep_tab->next_select)(join, qep_tab+1, 0);
+      //join连表，使用 joinBuffer时 --> sub_select_op 存储到joinBuffer。 不使用joinBuffer时，接着 sub_select-->evaluate_join_record-->end_send 循环读取【被驱动表】匹配结果发送到客户端缓存
+      rc= (*qep_tab->next_select)(join, qep_tab+1, 0);  // next_select表示从InnoDB中获取到数据后之后的处理，比如group by时，把group by对应的字段值插入到临时表中。
       join->thd->get_stmt_da()->inc_current_row_for_condition();
       if (rc != NESTED_LOOP_OK)
         DBUG_RETURN(rc);
@@ -2904,7 +2903,7 @@ void QEP_TAB::set_pushed_table_access_method(void)
 
 /* ARGSUSED */
 static enum_nested_loop_state
-end_send(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
+end_send(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)                                                             // 连表记录匹配，将结果发送到客户端结果缓存 -- end_send
 {
   DBUG_ENTER("end_send");
   /*
@@ -2937,7 +2936,7 @@ end_send(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
       DBUG_RETURN(NESTED_LOOP_OK);               // Didn't match having
     error=0;
     if (join->do_send_rows)
-      error= join->select_lex->query_result()->send_data(*fields);
+      error= join->select_lex->query_result()->send_data(*fields); //结果发送到客户端缓存
     if (error)
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
 
