@@ -4674,7 +4674,7 @@ It also has optimization such as pre-caching the rows, using AHI, etc.
 				cursor 'direction' should be 0.
 @return DB_SUCCESS or error code */
 dberr_t
-row_search_mvcc(                                                                                                        // ### 查询一行数据
+row_search_mvcc(                                                                                                        // ### 查询一行记录
 	byte*		buf,            // 查询结果
 	page_cur_mode_t	mode,
 	row_prebuilt_t*	prebuilt,  // 查询对象 == 查询条件search_tuple  +  索引 index + 游标 pcur（页号、记录指针）
@@ -5272,7 +5272,7 @@ wait_table_again:
                 // select * from user_info order by id desc; mode为PAGE_CUR_L
 
 		// PAGE_CUR_G会指向B+树中叶子节点的最左边页的中的最小记录，PAGE_CUR_G则指向B+树中叶子节点的最右边页的中的最大记录
-                btr_pcur_open_at_index_side(                                                                            //### 1、决定从B+树【左边】还是【右边】开始查询，第一次先返回游标
+                btr_pcur_open_at_index_side(                                                                            //### 1、决定从B+树叶子节点【最左边】还是【最右边】开始查询
 			mode == PAGE_CUR_G, index, BTR_SEARCH_LEAF,
 			pcur, false, 0, &mtr);
 	}

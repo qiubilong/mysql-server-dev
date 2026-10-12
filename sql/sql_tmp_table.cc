@@ -2602,7 +2602,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,                            
       goto err;
   }
   /* copy row that filled HEAP table */
-  if ((write_err=new_table.file->ha_write_row(table->record[0])))
+  if ((write_err=new_table.file->ha_write_row(table->record[0])))//写入刚刚插入【临时内存表】失败的记录
   {
     if (!new_table.file->is_ignorable_error(write_err) ||
 	!ignore_last_dup)

@@ -501,7 +501,7 @@ update_tmptable_sum_func(Item_sum **func_ptr,                                   
 {
   Item_sum *func;
   while ((func= *(func_ptr++)))
-    func->update_field(); // groupby数据重复，统计++            sql\item_sum.cc:item_sum_count
+    func->update_field(); // groupby数据重复，count()统计++            sql\item_sum.cc:item_sum_count
 }
 
 
@@ -880,7 +880,7 @@ Next_select_func JOIN::get_end_select_func()
 */
 
 static int
-do_select(JOIN *join)       // sql 执行入口
+do_select(JOIN *join)                                                                                                    // sql 执行入口
 {
   int rc= 0;
   enum_nested_loop_state error= NESTED_LOOP_OK;
@@ -3429,7 +3429,7 @@ end:
 /** Group by searching after group record and updating it if possible. */
 
 static enum_nested_loop_state
-end_update(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)                                                     //groupby 需要函数统计 --例如 select a,count(*) from t1 group by a;
+end_update(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)                                                     //groupby 需要函数统计，每获取到一条记录后调用这个方法 --例如 select a,count(*) from t1 group by a;
 {
   TABLE *const table= qep_tab->table();
   ORDER *group;
@@ -3519,7 +3519,7 @@ end_update(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)             
       DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
   }
   init_tmptable_sum_functions(join->sum_funcs);                                                                         //groupby【分组记录】未重复，count()统计行数初始化为1
-  if ((error=table->file->ha_write_row(table->record[0])))                                                              // ### 将【分组记录】插入【内存临时表】 > 【磁盘临时表】                                                  //将【分组记录】插入【内存临时表】 > 【磁盘临时表】
+  if ((error=table->file->ha_write_row(table->record[0])))                                                              // ### 将【分组记录】插入【内存临时表】 or 【磁盘临时表】
   {
     /*
       If the error is HA_ERR_FOUND_DUPP_KEY and the grouping involves a

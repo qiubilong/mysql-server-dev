@@ -244,9 +244,9 @@ static void trace_filesort_information(Opt_trace_context *trace,
   @returns   False if success, true if error
 */
 
-bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
+bool filesort(THD *thd, Filesort *filesort, bool sort_positions,                                                        // order by 文件排序 -- 尽量内存排序(256k) > （参与字段长度>1k）内存主键排序+回表 > 归并排序有序临时文件
               ha_rows *examined_rows, ha_rows *found_rows,
-              ha_rows *returned_rows)                                                                                   // order by 文件排序 -- 尽量内存排序(256k) > 内存主键排序+回表 > 文件归并排序
+              ha_rows *returned_rows)
 {
   int error;
   ulong memory_available= thd->variables.sortbuff_size;
@@ -361,7 +361,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   }
   else
   {
-    DBUG_PRINT("info", ("filesort PQ is not applicable")); //非边取边排，默认全部取完记录后统一排序
+    DBUG_PRINT("info", ("filesort PQ is not applicable")); //非一边读取记录一边优先级队列排，默认取完全部记录后统一排序
     filesort->using_pq= false;
     param.using_pq= false;
 
@@ -1555,7 +1555,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)                  
   else
   {
     /* Save filepos last */
-    memcpy(to, ref_pos, ref_length);                                                                                    //仅写记录主键，排序后再回表，避免sortBuffer用满，导致归并排序临时文件
+    memcpy(to, ref_pos, ref_length);                                                                                    //仅写记录主键+排序字段，排序后再回表，避免sortBuffer用满，导致归并排序临时文件
     to+= ref_length;
   }
   return to - orig_to;
