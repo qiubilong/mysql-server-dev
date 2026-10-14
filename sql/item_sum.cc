@@ -1621,7 +1621,7 @@ double Aggregator_simple::arg_val_real()
 }
 
 
-bool Aggregator_simple::arg_is_null(bool use_null_value)
+bool Aggregator_simple::arg_is_null(bool use_null_value)          // count 判断参数是否为空，不空返回true，count++
 {
   Item **item= item_sum->args;
   const uint item_count= item_sum->arg_count;
@@ -1635,9 +1635,9 @@ bool Aggregator_simple::arg_is_null(bool use_null_value)
   }
   else
   {
-    for (uint i= 0; i < item_count; i++)
+    for (uint i= 0; i < item_count; i++)                // count 判断参数是否为空
     {
-      if (item[i]->maybe_null && item[i]->is_null())
+      if (item[i]->maybe_null && item[i]->is_null()) // maybe_null短路计算，COUNT(*)、COUNT(1)、COUNT(id)等价
         return true;
     }
   }
@@ -1685,11 +1685,11 @@ void Item_sum_count::clear()
 }
 
 
-bool Item_sum_count::add()
+bool Item_sum_count::add()                         // count 统计
 {
-  if (aggr->arg_is_null(false))
+  if (aggr->arg_is_null(false)) // null跳过
     return 0;
-  count++;
+  count++;   // 非null ++
   return 0;
 }
 

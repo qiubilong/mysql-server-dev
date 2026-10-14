@@ -2718,12 +2718,12 @@ void Query_result_send::abort_result_set()
 
 /* Send data to client. Returns 0 if ok */
 
-bool Query_result_send::send_data(List<Item> &items)
+bool Query_result_send::send_data(List<Item> &items)                                                                    //### 发送记录数据给客户端，执行limit判断
 {
   Protocol *protocol= thd->get_protocol();
   DBUG_ENTER("Query_result_send::send_data");
 
-  if (unit->offset_limit_cnt)
+  if (unit->offset_limit_cnt)                                                                                           // 跳过 limit偏移 offset
   {						// using limit offset,count
     unit->offset_limit_cnt--;
     DBUG_RETURN(FALSE);

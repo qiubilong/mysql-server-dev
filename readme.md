@@ -108,6 +108,22 @@ CREATE TABLE `t2` (  -- t2表可以模拟主键排序再回表
         select * from t1 join t2 on t1.id=t2.id where t1.a=200;  
             -- 遍历【驱动表】 sub_select-->循环 【row_search_mvcc --> evaluate_join_record -->where匹配 --> sub_select被驱动表】
               -- 遍历【被驱动表】 sub_select-->循环 【id回表row_search_mvcc -->evaluate_join_record-->where匹配-->end_send】
+
+### 子查询
+    -- in转连表, 先t2后t1 。例如 select * from t1  where t1.id in ( select id from t2 where a=2 );  
+    -- explain 出现【unique_subquery】 子查询，先t1后t2 。例如 select * from t1  where t1.id  not in ( select id from t2 where a=2 );  
+    -- in 是集合查询。exist是布尔条件查询，短路操作，符合条件就停止。例如 select * from t1 info  where id=4 and  exists ( select 1 from t2 where t2.id = info.id );  
+    -- 先执行内部自查询生成临时表。 例如 select * from  ( select id, a from t2 where a=100 limit 20 ) t  where t.id=4  ;  
+
+
+### count统计    sub_select  --> 循环 row_search_mvcc --> where过滤 evaluate_join_record -->  累计 sql\item_sum.cc:add
+    COUNT(列) 可能走不同索引，COUNT(*)：优化器选最小的索引（通常是二级索引）来数。
+    COUNT(id)：如果 id 是主键，走主键，主键索引比二级索引大（包含整行数据），所以 COUNT(id) 可能比 COUNT(*) 慢，因为扫的索引更大
+    -- select count(*) from t1;
+    -- select count(1) from t1;
+    -- select count(id) from t1;
     
-       
+### limit截取   sub_select  --> 循环 row_search_mvcc --> where过滤 evaluate_join_record --> 
+                       sql\sql_executor.cc:end_send 行数判断 --->  sql\sql_class.cc:send_data 跳过偏移       
+                        end_send 方法中 limit结束，返回NESTED_LOOP_QUERY_LIMIT结束外层循环
   

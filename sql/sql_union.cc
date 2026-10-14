@@ -66,7 +66,7 @@ bool Query_result_union::send_data(List<Item> &values)
   if (!check_unique_constraint(table))
     return false;
 
-  const int error= table->file->ha_write_row(table->record[0]);
+  const int error= table->file->ha_write_row(table->record[0]);        // 子查询，写入临时表
   if (error)
   {
     // create_ondisk_from_heap will generate error if needed

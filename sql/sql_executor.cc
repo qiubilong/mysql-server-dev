@@ -1653,7 +1653,7 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)                        
       // A match is found for the current partial join prefix.
       qep_tab->found_match= true;
 
-      //join连表，使用 joinBuffer时 --> sub_select_op 存储到joinBuffer。 不使用joinBuffer时，接着 sub_select-->evaluate_join_record-->end_send 循环读取【被驱动表】匹配结果发送到客户端缓存
+      //join连表，使用 joinBuffer时 --> sub_select_op 存储到joinBuffer。 不使用joinBuffer时，接着 sub_select-->evaluate_join_record--> end_send 循环读取【被驱动表】匹配结果发送到客户端缓存
       rc= (*qep_tab->next_select)(join, qep_tab+1, 0);  // next_select表示从InnoDB中获取到数据后之后的处理，比如group by时，把group by对应的字段值插入到临时表中。
       join->thd->get_stmt_da()->inc_current_row_for_condition();
       if (rc != NESTED_LOOP_OK)
@@ -2936,12 +2936,12 @@ end_send(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)                     
       DBUG_RETURN(NESTED_LOOP_OK);               // Didn't match having
     error=0;
     if (join->do_send_rows)
-      error= join->select_lex->query_result()->send_data(*fields); //结果发送到客户端缓存
+      error= join->select_lex->query_result()->send_data(*fields);                                                   //### 结果发送到客户端缓存 -- limit操作在这里过滤
     if (error)
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
 
-    ++join->send_records;
-    if (join->send_records >= join->unit->select_limit_cnt &&
+    ++join->send_records;                                                                                               // 获取符合条件记录行数 ++
+    if (join->send_records >= join->unit->select_limit_cnt &&                                                           // limit结束，总行数 select_limit_cnt= limit offset + pageSize
         !join->do_send_rows)
     {
       /*
@@ -2957,7 +2957,7 @@ end_send(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)                     
           qep_tab[-1].filesort->using_pq)
       {
         DBUG_PRINT("info", ("filesort NESTED_LOOP_QUERY_LIMIT"));
-        DBUG_RETURN(NESTED_LOOP_QUERY_LIMIT);
+        DBUG_RETURN(NESTED_LOOP_QUERY_LIMIT);                                                                           //## limit结束，返回NESTED_LOOP_QUERY_LIMIT结束外层循环
       }
     }
     if (join->send_records >= join->unit->select_limit_cnt &&
