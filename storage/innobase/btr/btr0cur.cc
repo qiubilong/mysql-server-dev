@@ -1067,7 +1067,7 @@ btr_cur_search_to_nth_level(                                                    
 	/* Loop and search until we arrive at the desired level */
 	btr_latch_leaves_t latch_leaves = {{NULL, NULL, NULL}, {0, 0, 0}};
 
-search_loop:                                                                                                            //########## 从根页开始搜索，直到叶子节点【循环】，先从根页定位索引记录，得到记录页号，然后再去记录页查找
+search_loop:                                                                                                            //########## 从根页开始搜索，直到叶子节点【循环】，先从根页定位【索引记录】，得到记录页号，然后再去记录页查找
 	buf_mode = BUF_GET;
 	rw_latch = RW_NO_LATCH;
 	rtree_parent_modified = false;
@@ -3164,13 +3164,13 @@ fail_err:
 		return(err);
 	}
         // 插入记录可能需要新增一个页目录slot，max_size表示增加一个slot后，页面剩余的空间
-	ulint	max_size = page_get_max_insert_size_after_reorganize(page, 1);
+	ulint	max_size = page_get_max_insert_size_after_reorganize(page, 1); //【页】活跃记录大小，不包括删除记录
 
 	if (page_has_garbage(page)) {
 		if ((max_size < rec_size
 		     || max_size < BTR_CUR_PAGE_REORGANIZE_LIMIT)
 		    && page_get_n_recs(page) > 1
-		    && page_get_max_insert_size(page, 1) < rec_size) {
+		    && page_get_max_insert_size(page, 1) < rec_size) {//【页】记录大小，包括删除记录
 
 			goto fail;
 		}
@@ -3332,7 +3332,7 @@ made on the leaf level, to avoid deadlocks, mtr must also own x-latches
 to brothers of page, if those brothers exist.
 @return DB_SUCCESS or error number */
 dberr_t
-btr_cur_pessimistic_insert(
+btr_cur_pessimistic_insert(                                                                                              // ### 悲观插入 -- 页拆分、分重组
 /*=======================*/
 	ulint		flags,	/*!< in: undo logging and locking flags: if not
 				zero, the parameter thr should be
@@ -3436,11 +3436,11 @@ btr_cur_pessimistic_insert(
 
 		/* The page is the root page */
                 // 会先进行根页的转换，然后调用下面btr_page_split_and_insert()方法进行普通页的拆分和插入
-		*rec = btr_root_raise_and_insert(
+		*rec = btr_root_raise_and_insert(                                                                               //### 索引根页拆分与转换  -- B+树只有一页，根页还是叶子节点
 			flags, cursor, offsets, heap, entry, n_ext, mtr);
 	} else {
                 // 普通页的拆分和插入，btr_root_raise_and_insert中其实也会调用到这个方法
-		*rec = btr_page_split_and_insert(
+		*rec = btr_page_split_and_insert(                                                                               //### 输入插入 -- 页拆分
 			flags, cursor, offsets, heap, entry, n_ext, mtr);
 	}
 

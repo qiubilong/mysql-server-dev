@@ -790,7 +790,7 @@ page_cur_search_with_match_bytes(                                               
 	/* Perform binary search until the lower and upper limit directory
 	slots come to the distance 1 of each other */
 
-	while (up - low > 1) {                                                                                              // 页目录二分查找
+	while (up - low > 1) {                                                                                              // 【页目录分组】二分查找
 		mid = (low + up) / 2;
 		slot = page_dir_get_nth_slot(page, mid);
 		mid_rec = page_dir_slot_get_rec(slot);
@@ -914,9 +914,9 @@ up_rec_match:
 	}
 
 	if (mode <= PAGE_CUR_GE) {
-		page_cur_position(up_rec, block, cursor);                                                                       // 等值、大于都是走升序查询，返回>=【匹配值】的游标
+		page_cur_position(up_rec, block, cursor);                                                                       // 等值、大于都是走升序查询，返回>=【匹配值】的右边游标
 	} else {
-		page_cur_position(low_rec, block, cursor);
+		page_cur_position(low_rec, block, cursor);                                                                      //PAGE_CUR_LE 返回区间左边
 	}
 
 	*iup_matched_fields  = up_matched_fields;
@@ -1338,7 +1338,7 @@ Returns pointer to inserted record if succeed, i.e., enough
 space available, NULL otherwise. The cursor stays at the same position.
 @return pointer to record if succeed, NULL otherwise */
 rec_t*
-page_cur_insert_rec_low(
+page_cur_insert_rec_low(                                                                                                //当前页，插入一条新纪录
 /*====================*/
 	rec_t*		current_rec,/*!< in: pointer to current record after
 				which the new record is inserted */

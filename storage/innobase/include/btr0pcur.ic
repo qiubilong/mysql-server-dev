@@ -471,7 +471,7 @@ btr_pcur_open_low(
 			 || (latch_mode & BTR_MODIFY_TREE)) ? true : false));
 	} else {
                 // level=0表示叶子节点层
-		btr_cur_search_to_nth_level(
+		btr_cur_search_to_nth_level(                                                                                    //自上而下搜索B+树，到叶子节点中
 			index, level, tuple, mode, latch_mode,
 			btr_cursor, 0, file, line, mtr);
 	}

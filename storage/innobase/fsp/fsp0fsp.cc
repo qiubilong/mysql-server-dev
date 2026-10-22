@@ -3344,7 +3344,7 @@ fseg_alloc_free_page_general(
 		return(NULL);
 	}
 
-	block = fseg_alloc_free_page_low(space, page_size,
+	block = fseg_alloc_free_page_low(space, page_size,                                                                  // ## 向【段】申请一个空闲页
 					 inode, hint, direction,
 					 RW_X_LATCH, mtr, init_mtr
 #ifdef UNIV_DEBUG

@@ -1660,7 +1660,7 @@ INSERT graph.
 @return error code or DB_SUCCESS */
 static
 dberr_t
-row_insert_for_mysql_using_ins_graph(
+row_insert_for_mysql_using_ins_graph(                                                                                   //### 插入一行新纪录
 	const byte*	mysql_rec,
 	row_prebuilt_t*	prebuilt)
 {
@@ -1743,7 +1743,7 @@ run_again:
 	thr->run_node = node;
 	thr->prev_node = node;
 
-	row_ins_step(thr);
+	row_ins_step(thr);                                                                                                  //### 插入一行新纪录
 
 	DEBUG_SYNC_C("ib_after_row_insert_step");
 

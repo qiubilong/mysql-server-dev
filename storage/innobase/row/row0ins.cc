@@ -2478,7 +2478,7 @@ the delete marked record.
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
 dberr_t
-row_ins_clust_index_entry_low(
+row_ins_clust_index_entry_low(                                                                                          //### 【主键索引】插入【用户记录】
 /*==========================*/
 	ulint		flags,	/*!< in: undo logging and locking flags */
 	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
@@ -2537,7 +2537,7 @@ row_ins_clust_index_entry_low(
 	cursor sensible values */
         // 会进入到btr0pcur.ic中的btr_pcur_open_low()函数
 	// 会从索引对应的B+树的叶子节点开始找
-        btr_pcur_open(index, entry, PAGE_CUR_LE, mode, &pcur, &mtr);
+        btr_pcur_open(index, entry, PAGE_CUR_LE, mode, &pcur, &mtr);                                                    //【自上而下】搜索B+树，找到第一个<=【插入记录】的 插入点游标，新记录查到这个游标后面 -- PAGE_CUR_LE取左边
 	cursor = btr_pcur_get_btr_cur(&pcur);
 	cursor->thr = thr;
 
@@ -2546,12 +2546,12 @@ row_ins_clust_index_entry_low(
 
 #ifdef UNIV_DEBUG
 	{
-		// 当前游标所在页
+		 /* 当前游标所在页 */
                 page_t*	page = btr_cur_get_page(cursor);
-                // 当前游标所在页的第一条记录，最小记录的下一条记录
+                 /* 当前游标所在页的第一条记录，最小记录的下一条记录 */
 		rec_t*	first_rec = page_rec_get_next(
 			page_get_infimum_rec(page));
-                // 最小记录的下一条记录是最大记录，则表示页中是空的
+                /* 最小记录的下一条记录是最大记录，则表示页中是空的*/
 		ut_ad(page_rec_is_supremum(first_rec)
 		      || rec_n_fields_is_sane(index, first_rec, entry));
 	}
@@ -2642,7 +2642,7 @@ err_exit:
 			ut_ad((mode & ~BTR_ALREADY_S_LATCHED)
 			      == BTR_MODIFY_LEAF);
 			// 乐观插入
-                        err = btr_cur_optimistic_insert(
+                        err = btr_cur_optimistic_insert(                                                                //### 乐观插入 -- 当前页空间足够
 				flags, cursor, &offsets, &offsets_heap,
 				entry, &insert_rec, &big_rec,
 				n_ext, thr, &mtr);
@@ -2664,7 +2664,7 @@ err_exit:
 
                         // 失败了则进行悲观插入
 			if (err == DB_FAIL) {
-				err = btr_cur_pessimistic_insert(
+				err = btr_cur_pessimistic_insert(                                                                       // ### 悲观插入 -- 页拆分、分重组
 					flags, cursor,
 					&offsets, &offsets_heap,
 					entry, &insert_rec, &big_rec,
@@ -3282,7 +3282,7 @@ to a delete marked record, performs the insert by updating or delete
 unmarking the delete marked record.
 @return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
 dberr_t
-row_ins_clust_index_entry(
+row_ins_clust_index_entry(                                                                                              //【聚集索引】插入一条【新记录】
 /*======================*/
 	dict_index_t*	index,	/*!< in: clustered index */
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
@@ -3333,7 +3333,7 @@ row_ins_clust_index_entry(
 			BTR_MODIFY_LEAF, index, entry, n_ext, thr);
 	} else {
                 // 核心的插入操作，BTR_MODIFY_LEAF表示修改叶子节点，需要加X锁
-		err = row_ins_clust_index_entry_low(
+		err = row_ins_clust_index_entry_low(                                                                            //### 1、【用户记录】插入到叶子节点
 			flags, BTR_MODIFY_LEAF, index, n_uniq, entry,
 			n_ext, thr, dup_chk_only);
 	}
@@ -3362,7 +3362,7 @@ row_ins_clust_index_entry(
 		err = row_ins_sorted_clust_index_entry(
 			BTR_MODIFY_TREE, index, entry, n_ext, thr);
 	} else {
-		err = row_ins_clust_index_entry_low(
+		err = row_ins_clust_index_entry_low(                                                                            //### 2、【索引记录】插入到非叶子节点
 			flags, BTR_MODIFY_TREE, index, n_uniq, entry,
 			n_ext, thr, dup_chk_only);
 	}
@@ -3603,7 +3603,7 @@ Inserts a single index entry to the table.
 code or DB_LOCK_WAIT */
 static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
-row_ins_index_entry_step(
+row_ins_index_entry_step(                                                                                               //指定【索引】插入一条【新记录】
 /*=====================*/
 	ins_node_t*	node,	/*!< in: row insert node */
 	que_thr_t*	thr)	/*!< in: query thread */
@@ -3622,7 +3622,7 @@ row_ins_index_entry_step(
 
 	ut_ad(dtuple_check_typed(node->entry));
         // 将索引记录插入到索引中，核心
-	err = row_ins_index_entry(node->index, node->entry, thr);
+	err = row_ins_index_entry(node->index, node->entry, thr);                                                           //指定【索引】插入一条【新记录】
 
 	DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
 			    "after_row_ins_index_entry_step");
@@ -3673,7 +3673,7 @@ row_ins_get_row_from_values(
 	it is safe to use them until we fetch from select again: therefore
 	we can just copy the pointers */
 
-	row = node->row;
+	row = node->row;        //将第一条插入记录保存到 row
 
 	i = 0;
 	list_node = node->values_list;
@@ -3726,7 +3726,7 @@ Inserts a row to a table.
 code or DB_LOCK_WAIT */
 static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
-row_ins(
+row_ins(                                                                                                                //插入一条新记录
 /*====*/
 	ins_node_t*	node,	/*!< in: row insert node */
 	que_thr_t*	thr)	/*!< in: query thread */
@@ -3738,21 +3738,17 @@ row_ins(
 	DBUG_PRINT("row_ins", ("table: %s", node->table->name.m_name));
 
 	if (node->state == INS_NODE_ALLOC_ROW_ID) {
-                // 分配row_id
-		row_ins_alloc_row_id_step(node);
-                // 新增记录可能需要插入到多个索引中，此处先找出表的第一个索引，第一个索引一定是聚集索引
+
+		row_ins_alloc_row_id_step(node); // 检查是否需要分配隐藏主键row_id，有唯一主键时不需要
+                /* 新增记录可能需要插入到多个索引中，此处先找出表的第一个索引，第一个索引一定是聚集索引 */
 		node->index = dict_table_get_first_index(node->table);
-                // 找出需要插到第一个索引中对应的第一个entry，可能是批量插入，这里先插入第一条
+                /* 找出需要插到第一个索引中对应的第一个entry，可能是批量插入，这里先插入第一条 */
 		node->entry = UT_LIST_GET_FIRST(node->entry_list);
 
 		if (node->ins_type == INS_SEARCHED) {
-                        // 处理以下情况：insert into t1(name) select name from t2 where id = 1
-                        // 从select语句获取要插入的数据
 			row_ins_get_row_from_select(node);
 
 		} else if (node->ins_type == INS_VALUES) {
-                        // 处理以下情况：insert into t1(id, name, age) values(8, 'zhouyu', 22);
-                        // 从values获取要插入的数据，仔细看方法的实现，values中可以写表达式
 			row_ins_get_row_from_values(node);
 		}
                 // 此状态表示需要为索引构建entry并插入到索引中去
@@ -3765,7 +3761,7 @@ row_ins(
 	while (node->index != NULL) {
 		if (node->index->type != DICT_FTS) {
                         // 插入到索引中去
-			err = row_ins_index_entry_step(node, thr);
+			err = row_ins_index_entry_step(node, thr);                                                                  //### 遍历【索引】依次插入【新记录】
 			switch(err) {
 			case DB_SUCCESS:
 				break;
@@ -3776,13 +3772,13 @@ row_ins(
 						= node->index;
 			//fall through
 			default:
-				DBUG_RETURN(err);
+				DBUG_RETURN(err); //DB_DUPLICATE_KEY会执行到这里退出
 			}
 		}
 
                 // 插入完之后获取下一个索引
 		node->index = dict_table_get_next_index(node->index);
-		node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
+		node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry); //获取下一个索引的数据
 
 		DBUG_EXECUTE_IF(
 			"row_ins_skip_sec",
@@ -3809,7 +3805,7 @@ Inserts a row to a table. This is a high-level function used in SQL execution
 graphs.
 @return query thread to run next or NULL */
 que_thr_t*
-row_ins_step(
+row_ins_step(                                                                                                           //### 插入一行新纪录
 /*=========*/
 	que_thr_t*	thr)	/*!< in: query thread */
 {
@@ -3902,7 +3898,7 @@ same_trx:
 
 	/* DO THE CHECKS OF THE CONSISTENCY CONSTRAINTS HERE */
 
-	err = row_ins(node, thr);
+	err = row_ins(node, thr);                                                                                           //### 插入一行新纪录
 
 error_handling:
 	trx->error_state = err;

@@ -127,3 +127,14 @@ CREATE TABLE `t2` (  -- t2表可以模拟主键排序再回表
                        sql\sql_executor.cc:end_send 行数判断 --->  sql\sql_class.cc:send_data 跳过偏移       
                         end_send 方法中 limit结束，返回NESTED_LOOP_QUERY_LIMIT结束外层循环
   
+
+### 插入新记录 sql\sql_insert.cc:mysql_insert --> 多行依次插入 
+  #### sql\sql_insert.cc:write_record -- insert 、 insert on duplicate update
+   #### storage\innobase\row\row0ins.cc:row_ins -- 插入一行记录
+     insert into t1(id,a,b) values (7,70,"test")
+```
+要保留历史/追加          → INSERT
+冲突时只改几个列         → INSERT ... ON DUPLICATE KEY UPDATE
+冲突时整行以新为准(快照)  → REPLACE = delete + insert
+冲突时直接跳过不要报错    → INSERT IGNORE
+```

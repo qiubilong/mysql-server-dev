@@ -214,18 +214,18 @@ row_ins_step(
 
 /* Insert node structure */
 
-struct ins_node_t{
+struct ins_node_t{                                                                                                      //insert插入 参数对象
 	que_common_t	common;	/*!< node type: QUE_NODE_INSERT */
 	ulint		ins_type;/* INS_VALUES, INS_SEARCHED, or INS_DIRECT 普通的insert语句对应的类型就是INS_VALUES*/
 	dtuple_t*	row;	/*!< row to insert 表示需要插入的数据元组*/
 	dict_table_t*	table;	/*!< table where to insert 表信息*/
 	sel_node_t*	select;	/*!< select in searched insert insert...select语句对应的select部分*/
-	que_node_t*	values_list;/* list of expressions to evaluate and
-				insert in an INS_VALUES insert insert语句的values列表*/
+	que_node_t*	values_list;/* list of expressions to evaluate and                                                      //insert语句的values列表
+				insert in an INS_VALUES insert */
 	ulint		state;	/*!< node execution state 执行状态*/
-	dict_index_t*	index;	/*!< NULL, or the next index where the index
+	dict_index_t*	index;	/*!< NULL, or the next index where the index                                                //当前 insert 索引
 				entry should be inserted 插入操作当前需要插入到哪个index，一个插入操作可能需要插入到多个索引中*/
-	dtuple_t*	entry;	/*!< NULL, or entry to insert in the index;
+	dtuple_t*	entry;	/*!< NULL, or entry to insert in the index;                                                     //当前 insert 记录数据
 				after a successful insert of the entry,
 				this should be reset to NULL 和row类似，都是dtuple_t类型，entry表示要插入到index的数据*/
 	UT_LIST_BASE_NODE_T(dtuple_t)

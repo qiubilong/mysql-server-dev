@@ -425,7 +425,7 @@ bool mysql_prepare_blob_values(THD *thd, List<Item> &fields, MEM_ROOT *mem_root)
   end of dispatch_command().
 */
 
-bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
+bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)                                                      //数据插入总入口
 {
   DBUG_ENTER("mysql_insert");
 
@@ -477,7 +477,7 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
   THD_STAGE_INFO(thd, stage_init);
   lex->used_tables=0;
 
-  List_iterator_fast<List_item> its(insert_many_values);
+  List_iterator_fast<List_item> its(insert_many_values);                     //插入多行数据，一行一个 ListItem， VALUES (1,'a',10), (2,'b',20) 就是 2 个 List_item，各含 3 个 Item。
   List_item *values= its++;
   const uint value_count= values->elements;
   TABLE      *insert_table= NULL;
@@ -694,7 +694,7 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
     (*next_field)->reset_warnings();
   }
 
-  while ((values= its++))
+  while ((values= its++))                                                                                               //### 遍历多行记录，依次插入
   {
     if (insert_field_list.elements || !value_count)
     {
@@ -755,7 +755,7 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
             share->default_values[share->null_bytes - 1];
         }
       }
-      if (fill_record_n_invoke_before_triggers(thd, insert_table->field,
+      if (fill_record_n_invoke_before_triggers(thd, insert_table->field, // ② 表达式求值 → 写入 record[0]
                                                *values, insert_table,
                                                TRG_EVENT_INSERT,
                                                insert_table->s->fields))
@@ -773,7 +773,7 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
       error= 1;
       break;
     }
-    error= write_record(thd, insert_table, &info, &update);
+    error= write_record(thd, insert_table, &info, &update);                                                             //### 插入一行数据
     if (error)
       break;
     thd->get_stmt_da()->inc_current_row_for_condition();
@@ -1509,7 +1509,7 @@ static int last_uniq_key(TABLE *table,uint keynr)
     non-0 - error
 */
 
-int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
+int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)                                            // 插入一行记录
 {
   int error, trg_error= 0;
   char *key=0;
@@ -1535,7 +1535,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
   if (duplicate_handling == DUP_REPLACE || duplicate_handling == DUP_UPDATE)
   {
     assert(duplicate_handling != DUP_UPDATE || update != NULL);
-    while ((error=table->file->ha_write_row(table->record[0])))
+    while ((error=table->file->ha_write_row(table->record[0])))                                                         // 插入重复时处理，INSERT ... ON DUPLICATE KEY 、INSERT ignore
     {
       uint key_nr;
       /*
@@ -1601,7 +1601,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
       */
       if (duplicate_handling == DUP_REPLACE &&
           table->next_number_field &&
-          key_nr == table->s->next_number_index &&
+          key_nr == table->s->next_number_index && // auto_increment自增，不允许 insert replace
 	  (insert_id_for_cur_row > 0))
 	goto err;
       if (table->file->ha_table_flags() & HA_DUPLICATE_POS)
@@ -1653,7 +1653,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
         error= HA_ERR_FOUND_DUPP_KEY;         /* Database can't find key */
         goto err;
       }
-      if (duplicate_handling == DUP_UPDATE)
+      if (duplicate_handling == DUP_UPDATE) //INSERT ... ON DUPLICATE KEY  -- 【插入重复转更新】情况
       {
         int res= 0;
         /*
@@ -1738,7 +1738,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
           // Handle the INSERT ON DUPLICATE KEY UPDATE operation
           update->set_function_defaults(table);
 
-          if ((error=table->file->ha_update_row(table->record[1],
+          if ((error=table->file->ha_update_row(table->record[1],                                                       //INSERT ON DUPLICATE KEY UPDATE 处理，插入主键冲突时，转更新
                                                 table->record[0])) &&
               error != HA_ERR_RECORD_IS_THE_SAME)
           {
@@ -1777,7 +1777,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
                                                       TRG_ACTION_AFTER, TRUE));
         goto ok_or_after_trg_err;
       }
-      else /* DUP_REPLACE */
+      else /* DUP_REPLACE */                                                                                            // 插入重复replace -- 也就是重复时先删除旧记录，再插入新记录
       {
         TABLE_LIST *view= table->pos_in_table_list->belong_to_view;
 
@@ -1855,7 +1855,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
               table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                                 TRG_ACTION_BEFORE, TRUE))
             goto before_trg_err;
-          if ((error=table->file->ha_delete_row(table->record[1])))
+          if ((error=table->file->ha_delete_row(table->record[1])))    // replace  replace 主键冲突删除旧记录，再重试插入
             goto err;
           info->stats.deleted++;
           if (!table->file->has_transactions())
@@ -1892,14 +1892,14 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
         table->write_set != save_write_set)
       table->column_bitmaps_set(save_read_set, save_write_set);
   }
-  else if ((error=table->file->ha_write_row(table->record[0])))
+  else if ((error=table->file->ha_write_row(table->record[0])))                                                         // ### 普通插入 insert、 insert ignore
   {
     DEBUG_SYNC(thd, "write_row_noreplace");
     info->last_errno= error;
     myf error_flags= MYF(0);
     if (table->file->is_fatal_error(error))
       error_flags|= ME_FATALERROR;
-    table->file->print_error(error, error_flags);
+    table->file->print_error(error, error_flags);//如果是insert ingore 语一下，则降级【主键重复】错误码，正常返回
     /*
       If IGNORE option is used, handler errors will be downgraded
       to warnings and don't  have to stop the iteration.

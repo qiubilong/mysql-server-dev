@@ -8154,7 +8154,7 @@ int handler::ha_reset()
 }
 
 
-int handler::ha_write_row(uchar *buf)                                                                                   //将【分组记录】插入【内存临时表】 > 【磁盘临时表】
+int handler::ha_write_row(uchar *buf)                                                                                   //插入记录 -- 新纪录插入、 将【分组记录】插入【内存临时表】 > 【磁盘临时表】
 {
   int error;
   Log_func *log_func= Write_rows_log_event::binlog_row_logging_function;
@@ -8175,7 +8175,7 @@ int handler::ha_write_row(uchar *buf)                                           
                   DBUG_RETURN(HA_ERR_CRASHED););
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_WRITE_ROW, MAX_KEY, error,
-    { error= write_row(buf); })                                                                                         //将【分组记录】插入【内存临时表ha_heap】 > 【磁盘临时表ha_innodbase】
+    { error= write_row(buf); })                                                                                         //插入记录 ha_innodbase -- 新纪录插入、   将【分组记录】插入【内存临时表ha_heap】 > 【磁盘临时表ha_innodbase】
 
   MYSQL_INSERT_ROW_DONE(error);
   if (unlikely(error))

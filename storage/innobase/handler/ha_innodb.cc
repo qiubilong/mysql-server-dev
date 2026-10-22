@@ -7510,7 +7510,7 @@ handle.
 @return error code */
 
 int
-ha_innobase::write_row(
+ha_innobase::write_row(                                                                                                 //插入一行新纪录
 /*===================*/
 	uchar*	record)	/*!< in: a row in MySQL format */
 {
@@ -7671,7 +7671,7 @@ no_commit:
 	innobase_srv_conc_enter_innodb(m_prebuilt);
 
 	/* Step-5: Execute insert graph that will result in actual insert. */
-	error = row_insert_for_mysql((byte*) record, m_prebuilt);
+	error = row_insert_for_mysql((byte*) record, m_prebuilt);                                                           //### 插入一行新纪录
 
 	DEBUG_SYNC(m_user_thd, "ib_after_row_insert");
 

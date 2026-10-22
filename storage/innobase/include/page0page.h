@@ -69,14 +69,14 @@ typedef	byte		page_header_t;
 #define	PAGE_N_HEAP	 4	/* number of records in the heap,
 				bit 15=flag: new-style compact page format */
 #define	PAGE_FREE	 6	/* pointer to start of page free record list */
-#define	PAGE_GARBAGE	 8	/* number of bytes in deleted records */
+#define	PAGE_GARBAGE	 8	/* number of bytes in deleted records */                                                    //删除记录的总字节数
 #define	PAGE_LAST_INSERT 10	/* pointer to the last inserted record, or
 				NULL if this info has been reset by a delete,
 				for example */
 #define	PAGE_DIRECTION	 12	/* last insert direction: PAGE_LEFT, ... */
 #define	PAGE_N_DIRECTION 14	/* number of consecutive inserts to the same
 				direction */
-#define	PAGE_N_RECS	 16	/* number of user records on the page */
+#define	PAGE_N_RECS	 16	/* number of user records on the page */                                                        //用户记录数 -- 不包括删除的记录
 #define PAGE_MAX_TRX_ID	 18	/* highest id of a trx which may have modified
 				a record on the page; trx_id_t; defined only
 				in secondary indexes and in the insert buffer
