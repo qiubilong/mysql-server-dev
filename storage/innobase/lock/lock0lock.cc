@@ -5956,7 +5956,7 @@ the query thread to the lock wait state and inserts a waiting request
 for a gap x-lock to the lock queue.
 @return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 dberr_t
-lock_rec_insert_check_and_lock(
+lock_rec_insert_check_and_lock(                                                                                         //加锁
 /*===========================*/
 	ulint		flags,	/*!< in: if BTR_NO_LOCKING_FLAG bit is
 				set, does nothing */

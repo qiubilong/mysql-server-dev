@@ -129,12 +129,24 @@ CREATE TABLE `t2` (  -- t2表可以模拟主键排序再回表
   
 
 ### 插入新记录 sql\sql_insert.cc:mysql_insert --> 多行依次插入 
-  #### sql\sql_insert.cc:write_record -- insert 、 insert on duplicate update
-   #### storage\innobase\row\row0ins.cc:row_ins -- 插入一行记录
-     insert into t1(id,a,b) values (7,70,"test")
+  - sql\sql_insert.cc:write_record -- insert 、 insert on duplicate update
+   - storage\innobase\row\row0ins.cc:row_ins -- 遍历索引，依次插入一行记录
+     - storage\innobase\btr\btr0cur.cc:btr_cur_optimistic_insert  -- 乐观插入，当前页空间足够
+     - storage\innobase\btr\btr0cur.cc:btr_cur_pessimistic_insert -- 悲观插入，申请新页，页拆分，id自增插入不需【页拆分】
 ```
-要保留历史/追加          → INSERT
+要保留历史/追加          → INSERT  --- insert into t1(id,a,b) values (7,70,"test")
 冲突时只改几个列         → INSERT ... ON DUPLICATE KEY UPDATE
 冲突时整行以新为准(快照)  → REPLACE = delete + insert
 冲突时直接跳过不要报错    → INSERT IGNORE
+```
+```
+死锁场景：
+ - 两个普通 INSERT 同时复活同一条 delete-marked 记录（S 锁 → 独占 升级成环）
+ - 并发 ON DUPLICATE KEY UPDATE 顺序不一样
+    T1: INSERT INTO t VALUES (5,1),(9,1) ON DUPLICATE KEY UPDATE v=v+1;
+    T2: INSERT INTO t VALUES (9,2),(5,2) ON DUPLICATE KEY UPDATE v=v+1;
+ - 两个唯一索引，删除 + insert 死锁
+   T1 ODKU：  ① uk('A') 项的 X 记录锁 → ② 请求 行10 的 X 记录锁
+   T2 DELETE：③ 行10 的 X 记录锁     → ④ 请求 uk('A') 项的 X 记录锁
+ 
 ```

@@ -5453,7 +5453,7 @@ dict_index_build_node_ptr(
 
 	dtuple_set_n_fields_cmp(tuple, n_unique);
 
-	dict_index_copy_types(tuple, index, n_unique);
+	dict_index_copy_types(tuple, index, n_unique); //设置主键id值
 
 	buf = static_cast<byte*>(mem_heap_alloc(heap, 4));
 

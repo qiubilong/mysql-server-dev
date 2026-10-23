@@ -2059,7 +2059,7 @@ row_ins_dupl_error_with_rec(
 		}
 	}
 
-	return(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
+	return(!rec_get_deleted_flag(rec, rec_offs_comp(offsets))); // 记录匹配 且 记录没打 delete-mark --> 记录重复
 }
 
 /***************************************************************//**
@@ -2152,7 +2152,7 @@ row_ins_scan_sec_index_for_duplicate(
 				lock_type, block, rec, index, offsets, thr);
 		} else {
 
-			err = row_ins_set_shared_rec_lock(
+			err = row_ins_set_shared_rec_lock(   //普通 insert 加 S锁 -- 并发插入【复活删除记录】时后面加X会死锁
 				lock_type, block, rec, index, offsets, thr);
 		}
 
@@ -2295,7 +2295,7 @@ record
 in online table rebuild (flags & (BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG)) */
 static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
-row_ins_duplicate_error_in_clust(
+row_ins_duplicate_error_in_clust(                                                                                       //主键重复检查
 /*=============================*/
 	ulint		flags,	/*!< in: undo logging and locking flags */
 	btr_cur_t*	cursor,	/*!< in: B-tree cursor */
@@ -2335,7 +2335,7 @@ row_ins_duplicate_error_in_clust(
 
 		rec = btr_cur_get_rec(cursor);
 
-		if (!page_rec_is_infimum(rec)) {
+		if (!page_rec_is_infimum(rec)) { // ★ 第一步：先给可能的重复记录加锁
 			offsets = rec_get_offsets(rec, cursor->index, offsets,
 						  ULINT_UNDEFINED, &heap);
 
@@ -2354,13 +2354,13 @@ row_ins_duplicate_error_in_clust(
 				duplicates ( REPLACE, LOAD DATAFILE REPLACE,
 				INSERT ON DUPLICATE KEY UPDATE). */
 
-				err = row_ins_set_exclusive_rec_lock(
+				err = row_ins_set_exclusive_rec_lock(  // REPLACE/ODKU(trx->duplicates) → X 锁
 					LOCK_REC_NOT_GAP,
 					btr_cur_get_block(cursor),
 					rec, cursor->index, offsets, thr);
 			} else {
 
-				err = row_ins_set_shared_rec_lock(
+				err = row_ins_set_shared_rec_lock(   //   普通 INSERT → S 锁；
 					LOCK_REC_NOT_GAP,
 					btr_cur_get_block(cursor), rec,
 					cursor->index, offsets, thr);
@@ -2374,7 +2374,7 @@ row_ins_duplicate_error_in_clust(
 				goto func_exit;
 			}
 
-			if (row_ins_dupl_error_with_rec(
+			if (row_ins_dupl_error_with_rec(  // 主键重复判断，返回DB_DUPLICATE_KEY
 				    rec, entry, cursor->index, offsets)) {
 duplicate:
 				trx->error_index = cursor->index;
@@ -2478,7 +2478,7 @@ the delete marked record.
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
 dberr_t
-row_ins_clust_index_entry_low(                                                                                          //### 【主键索引】插入【用户记录】
+row_ins_clust_index_entry_low(                                                                                          //### 【主键索引】插入【新记录】
 /*==========================*/
 	ulint		flags,	/*!< in: undo logging and locking flags */
 	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
@@ -2591,7 +2591,7 @@ row_ins_clust_index_entry_low(                                                  
 			/* Note that the following may return also
 			DB_LOCK_WAIT */
 
-			err = row_ins_duplicate_error_in_clust(
+			err = row_ins_duplicate_error_in_clust(                                                                     //主键重复检查 -- 普通 INSERT → S 锁    、 REPLACE/ODKU(trx->duplicates) → X 锁
 				flags, cursor, entry, thr, &mtr);
 		}
 
@@ -2610,7 +2610,7 @@ err_exit:
 	/* Note: Allowing duplicates would qualify for modification of
 	an existing record as the new entry is exactly same as old entry.
 	Avoid this check if allow duplicates is enabled. */
-	if (!index->allow_duplicates && row_ins_must_modify_rec(cursor)) {
+	if (!index->allow_duplicates && row_ins_must_modify_rec(cursor)) { //复活旧记录 -- 上面已经做了唯一性检查，到这里如果记录匹配的话，那么只能是删除的delete-mark记录
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
 		existing record */
@@ -2624,7 +2624,7 @@ err_exit:
 			index->last_sel_cur->invalid = true;
 		}
 
-		err = row_ins_clust_index_entry_by_modify(
+		err = row_ins_clust_index_entry_by_modify( //复活【删除记录】
 			&pcur, flags, mode, &offsets, &offsets_heap,
 			entry_heap, entry, thr, &mtr);
 
@@ -2641,7 +2641,7 @@ err_exit:
 		if (mode != BTR_MODIFY_TREE) {
 			ut_ad((mode & ~BTR_ALREADY_S_LATCHED)
 			      == BTR_MODIFY_LEAF);
-			// 乐观插入
+			      // 乐观插入
                         err = btr_cur_optimistic_insert(                                                                //### 乐观插入 -- 当前页空间足够
 				flags, cursor, &offsets, &offsets_heap,
 				entry, &insert_rec, &big_rec,
@@ -2664,7 +2664,7 @@ err_exit:
 
                         // 失败了则进行悲观插入
 			if (err == DB_FAIL) {
-				err = btr_cur_pessimistic_insert(                                                                       // ### 悲观插入 -- 页拆分、分重组
+				err = btr_cur_pessimistic_insert(                                                                       // ### 悲观插入 -- 申请新页、页拆分、分重组
 					flags, cursor,
 					&offsets, &offsets_heap,
 					entry, &insert_rec, &big_rec,
@@ -2908,7 +2908,7 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
 dberr_t
-row_ins_sec_index_entry_low(
+row_ins_sec_index_entry_low(                                                                                            //【二级索引】插入【索引记录】
 /*========================*/
 	ulint		flags,	/*!< in: undo logging and locking flags */
 	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
@@ -3035,7 +3035,7 @@ row_ins_sec_index_entry_low(
 			ut_ad(cursor.page_cur.block != NULL);
 			ut_ad(cursor.page_cur.block->made_dirty_with_no_latch);
 		} else {
-			btr_cur_search_to_nth_level(
+			btr_cur_search_to_nth_level(                                                                                //定位插入位置，返回左区间，也是【待插入记录】前记录
 				index, 0, entry, PAGE_CUR_LE,
 				search_mode,
 				&cursor, 0, __FILE__, __LINE__, &mtr);
@@ -3062,7 +3062,7 @@ row_ins_sec_index_entry_low(
 	n_unique = dict_index_get_n_unique(index);
 
 	if (dict_index_is_unique(index)
-	    && (cursor.low_match >= n_unique || cursor.up_match >= n_unique)) {
+	    && (cursor.low_match >= n_unique || cursor.up_match >= n_unique)) {//唯一索引的话，需要做唯一性检查
 		mtr_commit(&mtr);
 
 		DEBUG_SYNC_C("row_ins_sec_index_unique");
@@ -3072,7 +3072,7 @@ row_ins_sec_index_entry_low(
 			goto func_exit;
 		}
 
-		err = row_ins_scan_sec_index_for_duplicate(
+		err = row_ins_scan_sec_index_for_duplicate(//比较唯一性
 			flags, index, entry, thr, check, &mtr, offsets_heap);
 
 		mtr_commit(&mtr);
@@ -3135,7 +3135,7 @@ row_ins_sec_index_entry_low(
 		goto func_exit;
 	}
 
-	if (row_ins_must_modify_rec(&cursor)) {
+	if (row_ins_must_modify_rec(&cursor)) { // 主键相同 --> 原地更新，复用删除记录空间
 		/* If the existing record is being modified and the new record
 		is doesn't fit the provided slot then existing record is added
 		to free list and new record is inserted. This also means
@@ -3164,7 +3164,7 @@ row_ins_sec_index_entry_low(
 		big_rec_t*	big_rec;
 
 		if (mode == BTR_MODIFY_LEAF) {
-			err = btr_cur_optimistic_insert(
+			err = btr_cur_optimistic_insert(                                                                            //### 乐观插入 -- 当前页空间足够
 				flags, &cursor, &offsets, &offsets_heap,
 				entry, &insert_rec,
 				&big_rec, 0, thr, &mtr);
@@ -3187,7 +3187,7 @@ row_ins_sec_index_entry_low(
 				entry, &insert_rec,
 				&big_rec, 0, thr, &mtr);
 			if (err == DB_FAIL) {
-				err = btr_cur_pessimistic_insert(
+				err = btr_cur_pessimistic_insert(                                                                       // ### 悲观插入 -- 申请新页 & 页拆分
 					flags, &cursor,
 					&offsets, &offsets_heap,
 					entry, &insert_rec,
@@ -3296,7 +3296,7 @@ row_ins_clust_index_entry(                                                      
 	ulint	n_uniq;
 
 	DBUG_ENTER("row_ins_clust_index_entry");
-        // 不管外键的逻辑
+        /*  不管外键的逻辑 */
 	if (!index->table->foreign_set.empty()) {
 		err = row_ins_check_foreign_constraints(
 			index->table, index, entry, thr);
@@ -3310,10 +3310,10 @@ row_ins_clust_index_entry(                                                      
 
 	/* Try first optimistic descent to the B-tree */
 	ulint	flags;
-        // 不是内部表
+        /*// 不是内部表 */
 	if (!dict_table_is_intrinsic(index->table)) {
 		log_free_check();
-                // 如果是临时表，则不用加锁，临时表只有当前事务用
+               /* // 如果是临时表，则不用加锁，临时表只有当前事务用*/
 		flags = dict_table_is_temporary(index->table)
 			? BTR_NO_LOCKING_FLAG
 			: 0;
@@ -3333,7 +3333,7 @@ row_ins_clust_index_entry(                                                      
 			BTR_MODIFY_LEAF, index, entry, n_ext, thr);
 	} else {
                 // 核心的插入操作，BTR_MODIFY_LEAF表示修改叶子节点，需要加X锁
-		err = row_ins_clust_index_entry_low(                                                                            //### 1、【用户记录】插入到叶子节点
+		err = row_ins_clust_index_entry_low(                                                                            //### 【用户记录】插入到【主键索引】叶子节点
 			flags, BTR_MODIFY_LEAF, index, n_uniq, entry,
 			n_ext, thr, dup_chk_only);
 	}
@@ -3362,7 +3362,7 @@ row_ins_clust_index_entry(                                                      
 		err = row_ins_sorted_clust_index_entry(
 			BTR_MODIFY_TREE, index, entry, n_ext, thr);
 	} else {
-		err = row_ins_clust_index_entry_low(                                                                            //### 2、【索引记录】插入到非叶子节点
+		err = row_ins_clust_index_entry_low(
 			flags, BTR_MODIFY_TREE, index, n_uniq, entry,
 			n_ext, thr, dup_chk_only);
 	}
@@ -3377,7 +3377,7 @@ to a delete marked record, performs the insert by updating or delete
 unmarking the delete marked record.
 @return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
 dberr_t
-row_ins_sec_index_entry(
+row_ins_sec_index_entry(                                                                                                //【二级索引】插入【索引记录】
 /*====================*/
 	dict_index_t*	index,	/*!< in: secondary index */
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
@@ -3422,7 +3422,7 @@ row_ins_sec_index_entry(
 		flags = BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG;
 	}
 
-	err = row_ins_sec_index_entry_low(
+	err = row_ins_sec_index_entry_low(                                                                                  //【二级索引】插入【索引记录】
 		flags, BTR_MODIFY_LEAF, index, offsets_heap, heap, entry,
 		0, thr, dup_chk_only);
 	if (err == DB_FAIL) {

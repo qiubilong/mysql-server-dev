@@ -1391,7 +1391,7 @@ page_cur_insert_rec_low(                                                        
 #endif /* UNIV_DEBUG_VALGRIND */
 
 	/* 2. Try to find suitable space from page memory management */
-        // 查看FREE链表中的被删除的记录
+        /* 查看FREE链表中的被删除的记录 */
 	free_rec = page_header_get_ptr(page, PAGE_FREE);
 	if (UNIV_LIKELY_NULL(free_rec)) {
 		/* Try to allocate from the head of the free list. */
@@ -1400,7 +1400,7 @@ page_cur_insert_rec_low(                                                        
 		mem_heap_t*	heap		= NULL;
 
 		rec_offs_init(foffsets_);
-                // 拿到free_rec对应记录在页中的偏移量
+                /* 拿到free_rec对应记录在页中的偏移量 */
 		foffsets = rec_get_offsets(
 			free_rec, index, foffsets, ULINT_UNDEFINED, &heap);
 
@@ -1416,10 +1416,10 @@ page_cur_insert_rec_low(                                                        
 		insert_buf = free_rec - rec_offs_extra_size(foffsets);
 
 		if (page_is_comp(page)) {
-                        // 获取被删除记录的heap_no
+                        /* 获取被删除记录的heap_no */
 			heap_no = rec_get_heap_no_new(free_rec);
 
-                        // 修改PAGE_FREE和PAGE_GARBAGE
+                        /* 修改PAGE_FREE和PAGE_GARBAGE */
 			page_mem_alloc_free(page, NULL,
 					rec_get_next_ptr(free_rec, TRUE),
 					rec_size);
@@ -1437,7 +1437,7 @@ page_cur_insert_rec_low(                                                        
 use_heap:
 		free_rec = NULL;
                 // 生成新的heap_no，insert_buf指向分配的空间的最前面
-		insert_buf = page_mem_alloc_heap(page, NULL,
+		insert_buf = page_mem_alloc_heap(page, NULL,                                                                    //### 分配插入空间
 						 rec_size, &heap_no);
 
 		if (UNIV_UNLIKELY(insert_buf == NULL)) {
@@ -1447,7 +1447,7 @@ use_heap:
 
 	/* 3. Create the record */
         // 相当于把记录插入到的对应位置
-	insert_rec = rec_copy(insert_buf, rec, offsets);
+	insert_rec = rec_copy(insert_buf, rec, offsets);                                                                    //写入记录
 	rec_offs_make_valid(insert_rec, index, offsets);
 
 	/* 4. Insert the record in the linked list of records */
@@ -1465,7 +1465,7 @@ use_heap:
 		}
 #endif
 		page_rec_set_next(insert_rec, next_rec);
-		page_rec_set_next(current_rec, insert_rec);
+		page_rec_set_next(current_rec, insert_rec);                                                                     // ### 设置记录链表指针
 	}
 
 	page_header_set_field(page, NULL, PAGE_N_RECS,
@@ -1549,7 +1549,7 @@ use_heap:
 
 	/* 9. Write log record of the insert */
 	if (UNIV_LIKELY(mtr != NULL)) {
-		page_cur_insert_rec_write_log(insert_rec, rec_size,
+		page_cur_insert_rec_write_log(insert_rec, rec_size,                                                             // 写 redo log
 					      current_rec, index, mtr);
 	}
 
@@ -2637,7 +2637,7 @@ page_cur_delete_rec(
 		record in the page and to insert another one. */
 		page_cur_move_to_next(cursor);
 		ut_ad(page_cur_is_after_last(cursor));
-		page_create_empty(page_cur_get_block(cursor),
+		page_create_empty(page_cur_get_block(cursor),       //记录全部删除，重新初始化页面
 				  const_cast<dict_index_t*>(index), mtr);
 		return;
 	}

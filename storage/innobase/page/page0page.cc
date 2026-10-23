@@ -242,7 +242,7 @@ page_set_max_trx_id(
 Allocates a block of memory from the heap of an index page.
 @return pointer to start of allocated buffer, or NULL if allocation fails */
 byte*
-page_mem_alloc_heap(
+page_mem_alloc_heap(                                                                                                    //分配插入空间
 /*================*/
 	page_t*		page,	/*!< in/out: index page */
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page with enough
@@ -271,7 +271,7 @@ page_mem_alloc_heap(
 				    block + need);
 		*heap_no = page_dir_get_n_heap(page);
 
-		page_dir_set_n_heap(page, page_zip, 1 + *heap_no);
+		page_dir_set_n_heap(page, page_zip, 1 + *heap_no);                                                       //逻辑【记录编号】自增
 
 		return(block);
 	}
@@ -524,7 +524,7 @@ page_create_empty(
 				page_header_get_field(page, PAGE_LEVEL),
 				max_trx_id, NULL, mtr);
 	} else {
-		page_create(block, mtr, page_is_comp(page),
+		page_create(block, mtr, page_is_comp(page),// 初始化index页 -- 存储最小记录，最大记录
 			    dict_index_is_spatial(index));
 
 		if (max_trx_id) {
@@ -1035,7 +1035,7 @@ page_delete_rec_list_end(
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 
-	if (page_rec_is_supremum(rec)) {
+	if (page_rec_is_supremum(rec)) {  //### 连续主键id插入时，move_limit=supremum，不用遍历删除，直接重新初始化页面，效率高
 		ut_ad(n_recs == 0 || n_recs == ULINT_UNDEFINED);
 		/* Nothing to do, there are no records bigger than the
 		page supremum. */
@@ -1243,7 +1243,7 @@ page_delete_rec_list_start(
 		return;
 	}
 
-	if (page_rec_is_supremum(rec)) {
+	if (page_rec_is_supremum(rec)) {          //### 连续主键id插入时，move_limit=supremum，不用遍历删除，直接重新初始化页面，效率高
 		/* We are deleting all records. */
 		page_create_empty(block, index, mtr);
 		return;
@@ -1267,7 +1267,7 @@ page_delete_rec_list_start(
 
 	mtr_log_t	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 
-	while (page_cur_get_rec(&cur1) != rec) {
+	while (page_cur_get_rec(&cur1) != rec) {                //升序遍历删除不要记录
 		offsets = rec_get_offsets(page_cur_get_rec(&cur1), index,
 					  offsets, ULINT_UNDEFINED, &heap);
                 // 删除cur1执行的记录，并且会移动到下一条记录

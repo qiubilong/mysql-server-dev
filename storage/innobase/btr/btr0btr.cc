@@ -1260,7 +1260,7 @@ IBUF_BITMAP_FREE is unaffected by reorganization.
 @retval true if the operation was successful
 @retval false if it is a compressed page, and recompression failed */
 bool
-btr_page_reorganize_low(
+btr_page_reorganize_low(                                                                                                // 页面重组
 /*====================*/
 	bool		recovery,/*!< in: true if called in recovery:
 				locks should not be updated, i.e.,
@@ -1302,7 +1302,7 @@ btr_page_reorganize_low(
 	mtr_log_t	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 
 #ifndef UNIV_HOTBACKUP
-	temp_block = buf_block_alloc(buf_pool);
+	temp_block = buf_block_alloc(buf_pool);                                                                             //分配临时页面
 #else /* !UNIV_HOTBACKUP */
 	ut_ad(block == back_block1);
 	temp_block = back_block2;
@@ -1337,7 +1337,7 @@ btr_page_reorganize_low(
 	/* Copy the records from the temporary space to the recreated page;
 	do not copy the lock bits yet */
         // 然后再把临时页中的记录复制到当前页
-	page_copy_rec_list_end_no_locks(block, temp_block,
+	page_copy_rec_list_end_no_locks(block, temp_block,                                                         //重新复制记录
 					page_get_infimum_rec(temp_page),
 					index, mtr);
 
@@ -1852,7 +1852,7 @@ Decides if the page should be split at the convergence point of inserts
 converging to the right.
 @return TRUE if split recommended */
 ibool
-btr_page_get_split_rec_to_right(
+btr_page_get_split_rec_to_right(                                                                                        //连续递增尾部插入
 /*============================*/
 	btr_cur_t*	cursor,	/*!< in: cursor at which to insert */
 	rec_t**		split_rec) /*!< out: if split recommended,
@@ -2204,7 +2204,7 @@ Attaches the halves of an index page on the appropriate level in an
 index tree. */
 static MY_ATTRIBUTE((nonnull))
 void
-btr_attach_half_pages(
+btr_attach_half_pages(                                                                                                  //新页加入B+树，设置【新旧页】双向链表指针
 /*==================*/
 	ulint		flags,		/*!< in: undo logging and
 					locking flags */
@@ -2239,7 +2239,7 @@ btr_attach_half_pages(
 	heap = mem_heap_create(1024);
 
 	/* Based on split direction, decide upper and lower pages */
-	if (direction == FSP_DOWN) {
+	if (direction == FSP_DOWN) { /* 逆序插入，不用管 */
 
 		btr_cur_t	cursor;
 		ulint*		offsets;
@@ -2272,7 +2272,7 @@ btr_attach_half_pages(
 
                 // 高页
                 upper_page = buf_block_get_frame(new_block);
-		upper_page_no = new_block->page.id.page_no();
+		upper_page_no = new_block->page.id.page_no();                                                                   //新页号
 		upper_page_zip = buf_block_get_page_zip(new_block);
 	}
 
@@ -2309,7 +2309,7 @@ btr_attach_half_pages(
 	/* Insert it next to the pointer to the lower half. Note that this
 	may generate recursion leading to a split on the higher level. */
         // 将node_ptr_upper插入到B+树到上一层对应的节点中
-	btr_insert_on_non_leaf_level(flags, index, level + 1,
+	btr_insert_on_non_leaf_level(flags, index, level + 1,                                                                //新页索引记录《最小记录id，页号》插入B+树【索引节点】
 				     node_ptr_upper, mtr);
 
 	/* Free the memory heap */
@@ -2349,7 +2349,7 @@ btr_attach_half_pages(
 		ut_ad(btr_page_get_prev(lower_page, mtr) == prev_page_no);
 	}
 
-	btr_page_set_next(lower_page, lower_page_zip, upper_page_no, mtr);
+	btr_page_set_next(lower_page, lower_page_zip, upper_page_no, mtr);                                                  //设置【新旧页面】双向指针
 	btr_page_set_prev(upper_page, upper_page_zip, lower_page_no, mtr);
 
 	if (direction != FSP_DOWN) {
@@ -2618,7 +2618,7 @@ func_start:
 	/* try to insert to the next page if possible before split */
         // 当前页空间不够，那是不是可以直接把记录插入到右边的下一页呢，前提条件是，新记录是当前页的最后一条记录
         // 也就是会判断插入点的下一条记录是不是最大记录，如果符合条件，就会把记录直接插入到下一页中
-	rec = btr_insert_into_right_sibling(                                                                                //## 连续插入【快捷路径】 -- 有下一页 && 【新记录】是当前页的最后一条记录 --> 新纪录插入下一页
+	rec = btr_insert_into_right_sibling(                                                                                /* 连续插入【快捷路径】 -- 有下一页 && 【新记录】是当前页的最后一条记录 --> 新纪录插入下一页 */
 		flags, cursor, offsets, *heap, tuple, n_ext, mtr);
 
 	if (rec != NULL) {
@@ -2658,17 +2658,17 @@ func_start:
 		can't split the node in the middle by default. We need
 		to determine whether the new record will be inserted
 		to the left or right. */
-                // cursor指向的是插入点，如果page中至少有两条记录才进行拆分
+                /* cursor指向的是插入点，如果page中至少有两条记录才进行拆分 */
 		if (page_get_n_recs(page) > 1) {
                         // 如果页面中有多条记录，则获取中间位置的记录，总记录数/2
-			split_rec = page_get_middle_rec(page);                                                                      //### 默认兜底从页面中间拆分，空间利用率低
+			split_rec = page_get_middle_rec(page);                                                                      //### 默认兜底从页面【中间】拆分，空间利用率低，插入效率慢
 		} else if (btr_page_tuple_smaller(cursor, tuple,
 						  offsets, n_uniq, heap)) {
-			// 如果页面中只有一条记录，并且新记录比这条记录还要小，
+			/* 如果页面中只有一条记录，并且新记录比这条记录还要小， */
                         split_rec = page_rec_get_next(
 				page_get_infimum_rec(page));
 		} else {
-                        // 如果页面中只有一个记录，但是新记录比这条记录要大
+                        /* 如果页面中只有一个记录，但是新记录比这条记录要大 */
 			split_rec = NULL;
 		}
 	}
@@ -2710,7 +2710,7 @@ func_start:
 		first_rec = page_rec_get_next(page_get_infimum_rec(page));
 		move_limit = page_rec_get_next(btr_cur_get_rec(cursor));
 	} else {
-insert_empty:                                                                                                           //### id连续插入&&末尾插入，拆分位置split_rec为null
+insert_empty:                                                                                                           //### id连续插入&&末尾插入，拆分位置split_rec为null，move_limit就是最大记录
 		ut_ad(!split_rec);
 		ut_ad(!insert_left);
 		buf = UT_NEW_ARRAY_NOKEY(
@@ -2724,7 +2724,7 @@ insert_empty:                                                                   
 
 	/* 4. Do first the modifications in the tree structure */
         // 生成了新页，需要将新页插入到B+树中，叶子节点要形成链表，父节点中要插入对应的node_ptr
-	btr_attach_half_pages(flags, cursor->index, block,
+	btr_attach_half_pages(flags, cursor->index, block,                                                                  //新页加入B+树，设置【新旧页】双向链表指针
 			      first_rec, new_block, direction, mtr);
 
 	/* If the split is made on the leaf level and the insert will fit
@@ -2778,10 +2778,10 @@ insert_empty:                                                                   
 			as appropriate.  Deleting will always succeed. */
 			ut_a(new_page_zip);
 
-                        // 把当前页中的记录复制给新页
+                        /* // 把当前页中的记录复制给新页*/
 			page_zip_copy_recs(new_page_zip, new_page,
 					   page_zip, page, cursor->index, mtr);
-			// 删除新页中不需要的要的记录
+			/* // 删除新页中不需要的要的记录*/
                         page_delete_rec_list_end(move_limit - page + new_page,
 						 new_block, cursor->index,
 						 ULINT_UNDEFINED,
@@ -2800,20 +2800,20 @@ insert_empty:                                                                   
 				new_block, block, cursor->index);
 
 			/* Delete the records from the source page. */
-                        // 删除当前页，也就是被复制页中不需要的记录，move_limit表示当前页的中间记录，把中间记录之前的记录都删除掉
-                        // 留下来的都是比move_limit大的记录，所以当前在右边
+                        /* // 删除当前页，也就是被复制页中不需要的记录，move_limit表示当前页的中间记录，把中间记录之前的记录都删除掉*/
+                        /* // 留下来的都是比move_limit大的记录，所以当前在右边*/
 			page_delete_rec_list_start(move_limit, block,
 						   cursor->index, mtr);
 		}
 
-                // direction == FSP_DOWN表示新页在当前页的左边
+                /* // direction == FSP_DOWN表示新页在当前页的左边*/
 		left_block = new_block;
 		right_block = block;
 
 		if (!dict_table_is_locking_disabled(cursor->index->table)) {
 			lock_update_split_left(right_block, left_block);
 		}
-	} else {                                                                                                            //连续主键id插入时/ 无序插入时，新页在右
+	} else {                                                                                                            //连续主键id插入时、无序插入时，新页在右
 		/*		fputs("Split right\n", stderr); */
 
 		if (0
@@ -2834,7 +2834,7 @@ insert_empty:                                                                   
 					   page_zip, page, cursor->index, mtr);
 
                                                                                                                         // 删除新页中【拆分点前】的记录
-            page_delete_rec_list_start(move_limit - page //连续主键id插入时，不用删除
+            page_delete_rec_list_start(move_limit - page //### 连续主键id插入时，move_limit=supremum，不用遍历删除，直接重新初始化页面，效率高
 			   + new_page, new_block,
 			   cursor->index, mtr);
 
@@ -2854,7 +2854,7 @@ insert_empty:                                                                   
                         // 从move_limit开始删，删到最大记录，留下来的就是move_limit之前的记录，就是小记录，当前页放左边
                         // 删除当前页中后一半的记录
 			page_delete_rec_list_end(move_limit, block,                                                                 //删除旧页【拆分点后】的记录
-						 cursor->index,
+						 cursor->index,          //### 连续主键id插入时，move_limit=supremum，不用遍历删除，直接重新初始化页面，效率高
 						 ULINT_UNDEFINED,
 						 ULINT_UNDEFINED, mtr);
 		}
@@ -2918,10 +2918,10 @@ insert_empty:                                                                   
 	/* 8. If insert did not fit, try page reorganization.
 	For compressed pages, page_cur_tuple_insert() will have
 	attempted this already. */
-        // 如果一开始在新页没插入成功，那就进行页面重组
+        /*  如果一开始在新页没插入成功，那就进行页面重组 */
 
 	if (page_cur_get_page_zip(page_cursor)
-	    || !btr_page_reorganize(page_cursor, cursor->index, mtr)) {//插入失败时【页重组】，清除删除记录空间，整理碎片空间
+	    || !btr_page_reorganize(page_cursor, cursor->index, mtr)) { /* //插入失败时【页重组】，清除删除记录空间，整理碎片空间  */
 
 		goto insert_failed;
 	}

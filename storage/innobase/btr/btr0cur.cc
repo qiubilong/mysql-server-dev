@@ -2928,7 +2928,7 @@ For an insert, checks the locks and does the undo logging if desired.
 @return DB_SUCCESS, DB_WAIT_LOCK, DB_FAIL, or error number */
 UNIV_INLINE MY_ATTRIBUTE((warn_unused_result, nonnull(2,3,5,6)))
 dberr_t
-btr_cur_ins_lock_and_undo(
+btr_cur_ins_lock_and_undo(                                                                                              //加锁
 /*======================*/
 	ulint		flags,	/*!< in: undo logging and locking flags: if
 				not zero, the parameters index and thr
@@ -2977,7 +2977,7 @@ btr_cur_ins_lock_and_undo(
 			*inherit = false;
 		} else {
                         // 加锁
-			err = lock_rec_insert_check_and_lock(
+			err = lock_rec_insert_check_and_lock(                                                                       //加锁
 				flags, rec, btr_cur_get_block(cursor),
 				index, thr, mtr, inherit);
 		}
@@ -3050,7 +3050,7 @@ one record on the page, the insert will always succeed; this is to
 prevent trying to split a page with just one record.
 @return DB_SUCCESS, DB_WAIT_LOCK, DB_FAIL, or error number */
 dberr_t
-btr_cur_optimistic_insert(
+btr_cur_optimistic_insert(                                                                                              //### 乐观插入 -- 当前页空间足够
 /*======================*/
 	ulint		flags,	/*!< in: undo logging and locking flags: if not
 				zero, the parameters index and thr should be
@@ -3163,30 +3163,32 @@ fail_err:
 
 		return(err);
 	}
-        // 插入记录可能需要新增一个页目录slot，max_size表示增加一个slot后，页面剩余的空间
-	ulint	max_size = page_get_max_insert_size_after_reorganize(page, 1); //【页】活跃记录大小，不包括删除记录
-
+        /* 插入记录可能需要新增一个页目录slot，max_size表示增加一个slot后，页面剩余的空间 */
+	ulint	max_size = page_get_max_insert_size_after_reorganize(page, 1);                                        // max_size 可用空间 = 空页 - 活跃记录占用空间 + 垃圾空间
 	if (page_has_garbage(page)) {
 		if ((max_size < rec_size
-		     || max_size < BTR_CUR_PAGE_REORGANIZE_LIMIT)
+		     || max_size < BTR_CUR_PAGE_REORGANIZE_LIMIT) //剩余空间够，但剩余空间比较小
 		    && page_get_n_recs(page) > 1
-		    && page_get_max_insert_size(page, 1) < rec_size) {//【页】记录大小，包括删除记录
-
+		    && page_get_max_insert_size(page, 1) < rec_size) { //新可用空间不够，新可用空间 = 空页 - heapTop（删除 + 活跃）记录 ---> 垃圾空间不多，不想走空间重组
+                                                                     //总的来说，页面虽然有垃圾空间，但是垃圾空间不多，那么就走【悲观插入】，新页面拆分
 			goto fail;
 		}
-	} else if (max_size < rec_size) {
+	} else if (max_size < rec_size) { // ### 无垃圾， 页空间不足，走【悲观插入】，新页面拆分
 		goto fail;
 	}
+
+	// ### 有垃圾， 剩余空间多，那么就可以走【乐观插入】，不需要申请新页
+	// ### 无垃圾， 剩余空间够，走【乐观插入】，不需要申请新页                         ------------------------------------------大多数
 
 	/* If there have been many consecutive inserts to the
 	clustered index leaf page of an uncompressed table, check if
 	we have to split the page to reserve enough free space for
 	future updates of records. */
-        // 如果页面上至少有两条记录（不包括最大最小记录），记录大小比空闲空间至少大1KB，则判断是否需要拆分页，如果需要则乐观插入失败
+        /* 如果页面上至少有两条记录（不包括最大最小记录），记录大小比空闲空间至少大1KB，则判断是否需要拆分页，如果需要则乐观插入失败 */
 	if (leaf && !page_size.is_compressed() && dict_index_is_clust(index)
 	    && page_get_n_recs(page) >= 2
-	    && dict_index_get_space_reserve() + rec_size > max_size
-//	    && dict_index_get_space_reserve() + rec_size > 1  // 测试用
+	    && dict_index_get_space_reserve() + rec_size > max_size       //预留1KB空间
+/*	    && dict_index_get_space_reserve() + rec_size > 1  // 测试用 */
 	    && (btr_page_get_split_rec_to_right(cursor, &dummy)
 		|| btr_page_get_split_rec_to_left(cursor, &dummy))) {
 		goto fail;
@@ -3219,14 +3221,14 @@ fail_err:
 			/* Check locks and write to the undo log,
 			if specified */
                         // 会进行锁检查和undo log的记录，如果发现需要阻塞等待其他事务锁的释放就会加锁，如果发现insert不需要加锁，
-			err = btr_cur_ins_lock_and_undo(flags, cursor, entry,
+			err = btr_cur_ins_lock_and_undo(flags, cursor, entry,                                                       // ## 加锁
 							thr, mtr, &inherit);
 
 			if (err != DB_SUCCESS) {
 				goto fail_err;
 			}
                         // 获取锁成功就会执行page_cur_tuple_insert()进行entry的插入，并返回插入记录后记录的中间位置指针
-			*rec = page_cur_tuple_insert(
+			*rec = page_cur_tuple_insert(                                                                               // ## 插入新记录
 				page_cursor, entry, index, offsets, heap,
 				n_ext, mtr);
 		}
@@ -3235,8 +3237,7 @@ fail_err:
 	}
 
 	if (*rec) {
-          // 测试
-//           btr_page_reorganize(page_cursor, index, mtr);
+		/* All OK, do nothing */
 	} else if (page_size.is_compressed()) {
 		/* Reset the IBUF_BITMAP_FREE bits, because
 		page_cur_tuple_insert() will have attempted page
@@ -3259,7 +3260,7 @@ fail_err:
 		ut_ad(!reorg);
 
 		/* If the record did not fit, reorganize */
-		if (!btr_page_reorganize(page_cursor, index, mtr)) {
+		if (!btr_page_reorganize(page_cursor, index, mtr)) {                                                             //页面空间【尾部】写入失败，整理页面，清理垃圾
 			ut_ad(0);
 			goto fail;
 		}
@@ -3268,7 +3269,7 @@ fail_err:
 
 		reorg = TRUE;
 
-		*rec = page_cur_tuple_insert(page_cursor, entry, index,
+		*rec = page_cur_tuple_insert(page_cursor, entry, index,                                                         //整理页面后重新insert
 					     offsets, heap, n_ext, mtr);
 
 		if (UNIV_UNLIKELY(!*rec)) {
@@ -3332,7 +3333,7 @@ made on the leaf level, to avoid deadlocks, mtr must also own x-latches
 to brothers of page, if those brothers exist.
 @return DB_SUCCESS or error number */
 dberr_t
-btr_cur_pessimistic_insert(                                                                                              // ### 悲观插入 -- 页拆分、分重组
+btr_cur_pessimistic_insert(                                                                                              // ### 悲观插入 -- 申请新页 & 页拆分
 /*=======================*/
 	ulint		flags,	/*!< in: undo logging and locking flags: if not
 				zero, the parameter thr should be
@@ -3430,17 +3431,17 @@ btr_cur_pessimistic_insert(                                                     
 		}
 	}
 
-        // 如果是根页，则不仅仅是页的拆分，还要做根页的转换
+        /*  如果是根页，则不仅仅是页的拆分，还要做根页的转换*/
 	if (dict_index_get_page(index)
 	    == btr_cur_get_block(cursor)->page.id.page_no()) {
 
 		/* The page is the root page */
-                // 会先进行根页的转换，然后调用下面btr_page_split_and_insert()方法进行普通页的拆分和插入
-		*rec = btr_root_raise_and_insert(                                                                               //### 索引根页拆分与转换  -- B+树只有一页，根页还是叶子节点
+                /* 会先进行根页的转换，然后调用下面btr_page_split_and_insert()方法进行普通页的拆分和插入*/
+		*rec = btr_root_raise_and_insert(                                                                               //### 索引【根页】转换拆分  -- B+树只有一页，根页还是叶子节点
 			flags, cursor, offsets, heap, entry, n_ext, mtr);
 	} else {
-                // 普通页的拆分和插入，btr_root_raise_and_insert中其实也会调用到这个方法
-		*rec = btr_page_split_and_insert(                                                                               //### 输入插入 -- 页拆分
+                /* 普通页的拆分和插入，btr_root_raise_and_insert中其实也会调用到这个方法*/
+		*rec = btr_page_split_and_insert(                                                                               //### 【非根页】插入新记录 -- 页拆分
 			flags, cursor, offsets, heap, entry, n_ext, mtr);
 	}
 

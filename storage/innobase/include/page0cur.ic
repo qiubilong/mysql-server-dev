@@ -252,7 +252,7 @@ or by invoking ibuf_reset_free_bits() before mtr_commit().
 @return pointer to record if succeed, NULL otherwise */
 UNIV_INLINE
 rec_t*
-page_cur_tuple_insert(
+page_cur_tuple_insert(                                                                                                  //插入新纪录
 /*==================*/
 	page_cur_t*	cursor,	/*!< in/out: a page cursor */
 	const dtuple_t*	tuple,	/*!< in: pointer to a data tuple */
@@ -284,7 +284,7 @@ page_cur_tuple_insert(
 		rec = page_cur_insert_rec_zip(
 			cursor, index, rec, *offsets, mtr);
 	} else {
-		rec = page_cur_insert_rec_low(cursor->rec,
+		rec = page_cur_insert_rec_low(cursor->rec,                                                                      //插入新记录
 					      index, rec, *offsets, mtr);
 	}
 
