@@ -2637,7 +2637,7 @@ page_cur_delete_rec(
 		record in the page and to insert another one. */
 		page_cur_move_to_next(cursor);
 		ut_ad(page_cur_is_after_last(cursor));
-		page_create_empty(page_cur_get_block(cursor),       //记录全部删除，重新初始化页面
+		page_create_empty(page_cur_get_block(cursor),                                                                  //记录全部删除，重新初始化页面
 				  const_cast<dict_index_t*>(index), mtr);
 		return;
 	}
@@ -2688,7 +2688,7 @@ page_cur_delete_rec(
 
 	/* 3. Remove the record from the linked list of records */
 
-	page_rec_set_next(prev_rec, next_rec);
+	page_rec_set_next(prev_rec, next_rec);                                                                              //修改记录链表指针，物理删除
 
 	/* 4. If the deleted record is pointed to by a dir slot, update the
 	record pointer in slot. In the following if-clause we assume that
@@ -2709,7 +2709,7 @@ page_cur_delete_rec(
 	page_dir_slot_set_n_owned(cur_dir_slot, page_zip, cur_n_owned - 1);
 
 	/* 6. Free the memory occupied by the record */
-	page_mem_free(page, page_zip, current_rec, index, offsets);
+	page_mem_free(page, page_zip, current_rec, index, offsets);                                                         //加到垃圾链表，垃圾空间+recSize
 
 	/* 7. Now we have decremented the number of owned records of the slot.
 	If the number drops below PAGE_DIR_SLOT_MIN_N_OWNED, we balance the

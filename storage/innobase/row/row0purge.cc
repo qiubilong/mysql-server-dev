@@ -175,7 +175,7 @@ row_purge_remove_clust_if_poss_low(
 	ut_ad(rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
 	if (mode == BTR_MODIFY_LEAF) {
-		success = btr_cur_optimistic_delete(
+		success = btr_cur_optimistic_delete(                                                                            //### 异步回收主键索引【删除记录】空间 -- 乐观回收 -- 删除后空间利用率<50%
 			btr_pcur_get_btr_cur(&node->pcur), 0, &mtr);
 	} else {
 		dberr_t	err;
@@ -190,7 +190,7 @@ row_purge_remove_clust_if_poss_low(
 				       current_thd, STRING_WITH_LEN(act)));
 		});
 
-		btr_cur_pessimistic_delete(
+		btr_cur_pessimistic_delete(                                                                                     //### 异步回收主键索引【删除记录】空间 -- 悲观回收 -- 删除后空间利用率>50%，需要合并页面
 			&err, FALSE, btr_pcur_get_btr_cur(&node->pcur), 0,
 			false, &mtr);
 
@@ -232,14 +232,14 @@ row_purge_remove_clust_if_poss(
 /*===========================*/
 	purge_node_t*	node)	/*!< in/out: row purge node */
 {
-	if (row_purge_remove_clust_if_poss_low(node, BTR_MODIFY_LEAF)) {
+	if (row_purge_remove_clust_if_poss_low(node, BTR_MODIFY_LEAF)) {                                               //### 异步回收主键索引【删除记录】空间 -- 乐观回收
 		return(true);
 	}
 
 	for (ulint n_tries = 0;
 	     n_tries < BTR_CUR_RETRY_DELETE_N_TIMES;
 	     n_tries++) {
-		if (row_purge_remove_clust_if_poss_low(
+		if (row_purge_remove_clust_if_poss_low(                                                                         //### 异步回收主键索引【删除记录】空间 -- 悲观回收
 			    node, BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE)) {
 			return(true);
 		}
@@ -675,7 +675,7 @@ row_purge_del_mark(
 			dtuple_t*	entry = row_build_index_entry_low(
 				node->row, NULL, node->index,
 				heap, ROW_BUILD_FOR_PURGE);
-			row_purge_remove_sec_if_poss(node, node->index, entry);
+			row_purge_remove_sec_if_poss(node, node->index, entry);                                                     //异步回收【二级索引】【删除记录】空间
 			mem_heap_empty(heap);
 		}
 
@@ -684,7 +684,7 @@ row_purge_del_mark(
 
 	mem_heap_free(heap);
 
-	return(row_purge_remove_clust_if_poss(node));
+	return(row_purge_remove_clust_if_poss(node));                                                                       //### 异步回收主键索引【删除记录】空间
 }
 
 /***********************************************************//**
@@ -991,7 +991,7 @@ Purges the parsed record.
 @return true if purged, false if skipped */
 static MY_ATTRIBUTE((nonnull, warn_unused_result))
 bool
-row_purge_record_func(
+row_purge_record_func(                                                                                                  //异步回收【删除记录】空间
 /*==================*/
 	purge_node_t*	node,		/*!< in: row purge node */
 	trx_undo_rec_t*	undo_rec,	/*!< in: record to purge */
@@ -1013,7 +1013,7 @@ row_purge_record_func(
 
 	switch (node->rec_type) {
 	case TRX_UNDO_DEL_MARK_REC:
-		purged = row_purge_del_mark(node);
+		purged = row_purge_del_mark(node);                                                                              //异步回收【删除记录】空间
 		if (!purged) {
 			break;
 		}
@@ -1069,7 +1069,7 @@ row_purge(
 		while (row_purge_parse_undo_rec(
 			       node, undo_rec, &updated_extern, thr)) {
 
-			bool purged = row_purge_record(
+			bool purged = row_purge_record(                                                                             //异步回收【删除记录】空间
 				node, undo_rec, thr, updated_extern);
 
 			rw_lock_s_unlock(dict_operation_lock);
@@ -1080,7 +1080,7 @@ row_purge(
 			}
 
 			/* Retry the purge in a second. */
-			os_thread_sleep(1000000);
+			os_thread_sleep(1000000);                                                                                // 1秒
 		}
 	}
 }

@@ -183,7 +183,7 @@ btr_cur_can_delete_without_compress(
 	page = btr_cur_get_page(cursor);
 
 	if ((page_get_data_size(page) - rec_size
-	     < BTR_CUR_PAGE_COMPRESS_LIMIT(cursor->index))
+	     < BTR_CUR_PAGE_COMPRESS_LIMIT(cursor->index))                                                                  //页面实际利用空间 < 50%
 	    || ((btr_page_get_next(page, mtr) == FIL_NULL)
 		&& (btr_page_get_prev(page, mtr) == FIL_NULL))
 	    || (page_get_n_recs(page) < 2)) {
@@ -193,7 +193,7 @@ btr_cur_can_delete_without_compress(
 		one page, OR the page will become empty: we recommend
 		compression if this is not the root page. */
 
-		return(dict_index_get_page(cursor->index)
+		return(dict_index_get_page(cursor->index) //【根页】不需要不回收
 		       == page_get_page_no(page));
 	}
 
@@ -233,7 +233,7 @@ btr_rec_set_deleted_flag(
 	ulint		flag)	/*!< in: nonzero if delete marked */
 {
 	if (page_rec_is_comp(rec)) {
-		rec_set_deleted_flag_new(rec, page_zip, flag);
+		rec_set_deleted_flag_new(rec, page_zip, flag);                                                                  //#### 删除记录，设置记录的delete mark
 	} else {
 		ut_ad(!page_zip);
 		rec_set_deleted_flag_old(rec, flag);

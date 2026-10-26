@@ -2331,7 +2331,7 @@ row_upd_sec_index_entry(
 		row_ins_sec_index_entry() below */
 		if (!rec_get_deleted_flag(
 			    rec, dict_table_is_comp(index->table))) {
-			err = btr_cur_del_mark_set_sec_rec(
+			err = btr_cur_del_mark_set_sec_rec(                                                                         //设置二级索引的 delete mark
 				flags, btr_cur, TRUE, thr, &mtr);
 			if (err != DB_SUCCESS) {
 				break;
@@ -2783,7 +2783,7 @@ Delete marks a clustered index record.
 @return DB_SUCCESS if operation successfully completed, else error code */
 static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
-row_upd_del_mark_clust_rec(
+row_upd_del_mark_clust_rec(                                                                                             //#### 删除记录，只是更新的是记录的delete mark
 /*=======================*/
 	ulint		flags,  /*!< in: undo logging and locking flags */
 	upd_node_t*	node,	/*!< in: row update node */
@@ -2816,7 +2816,7 @@ row_upd_del_mark_clust_rec(
 	/* Mark the clustered index record deleted; we do not have to check
 	locks, because we assume that we have an x-lock on the record */
 
-	err = btr_cur_del_mark_set_clust_rec(
+	err = btr_cur_del_mark_set_clust_rec(                                                                               //#### 删除记录，只是更新的是记录的delete mark
 		flags, btr_cur_get_block(btr_cur), btr_cur_get_rec(btr_cur),
 		index, offsets, thr, node->row, mtr);
 	if (err == DB_SUCCESS && referenced) {
@@ -2837,7 +2837,7 @@ Updates the clustered index record.
 in case of a lock wait, else error code */
 static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
-row_upd_clust_step(
+row_upd_clust_step(                                                                                                     // 删除、更新【主键索引】
 /*===============*/
 	upd_node_t*	node,	/*!< in: row update node */
 	que_thr_t*	thr)	/*!< in: query thread */
@@ -2857,7 +2857,7 @@ row_upd_clust_step(
 	rec_offs_init(offsets_);
         // 拿到表的聚集索引
 	index = dict_table_get_first_index(node->table);
-        // 检查外键关系，不用管
+        /*  检查外键关系，不用管*/
 	referenced = row_upd_index_is_referenced(index, trx);
         // 指向要更新的记录
 	pcur = node->pcur;
@@ -2962,7 +2962,7 @@ row_upd_clust_step(
 	/* NOTE: the following function calls will also commit mtr */
         // delete操作其实就是更新，只是更新的是记录的delete mark
 	if (node->is_delete) {
-		err = row_upd_del_mark_clust_rec(
+		err = row_upd_del_mark_clust_rec(                                                                               //#### 删除记录，只是更新的是记录的delete mark
 			flags, node, index, offsets, thr, referenced, &mtr);
 
 		if (err == DB_SUCCESS) {
@@ -3047,7 +3047,7 @@ record, and the position of the cursor is stored in the cursor.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
 dberr_t
-row_upd(
+row_upd(                                                                                                                // 删除、更新
 /*====*/
 	upd_node_t*	node,	/*!< in: row update node */
 	que_thr_t*	thr)	/*!< in: query thread */
@@ -3087,7 +3087,7 @@ row_upd(
 		}
 
                 // 更新聚集索引
-		err = row_upd_clust_step(node, thr);
+		err = row_upd_clust_step(node, thr);                                                                            // 删除、更新【主键索引】
 
 		if (err != DB_SUCCESS) {
 
@@ -3118,7 +3118,7 @@ row_upd(
 		if (node->index->type != DICT_FTS) {
 
                         // 更新操作
-			err = row_upd_sec_step(node, thr);
+			err = row_upd_sec_step(node, thr);                                                                          // 依次 删除、更新【二级索引】
 
 			if (err != DB_SUCCESS) {
 

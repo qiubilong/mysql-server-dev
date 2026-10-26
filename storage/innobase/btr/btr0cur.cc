@@ -4799,7 +4799,7 @@ of the deleting transaction, and in the roll ptr field pointer to the
 undo log record created.
 @return DB_SUCCESS, DB_LOCK_WAIT, or error number */
 dberr_t
-btr_cur_del_mark_set_clust_rec(
+btr_cur_del_mark_set_clust_rec(                                                                                         //#### 删除记录，只是更新的是记录的delete mark
 /*===========================*/
 	ulint		flags,  /*!< in: undo logging and locking flags */
 	buf_block_t*	block,	/*!< in/out: buffer block of the record */
@@ -4829,7 +4829,7 @@ btr_cur_del_mark_set_clust_rec(
 		return(DB_SUCCESS);
 	}
 
-	err = lock_clust_rec_modify_check_and_lock(BTR_NO_LOCKING_FLAG, block,
+	err = lock_clust_rec_modify_check_and_lock(BTR_NO_LOCKING_FLAG, block,                                          // 加 X 锁
 						   rec, index, offsets, thr);
 
 	if (err != DB_SUCCESS) {
@@ -4837,7 +4837,7 @@ btr_cur_del_mark_set_clust_rec(
 		return(err);
 	}
 
-	err = trx_undo_report_row_operation(flags, TRX_UNDO_MODIFY_OP, thr,
+	err = trx_undo_report_row_operation(flags, TRX_UNDO_MODIFY_OP, thr,                                          //先写 undo log
 					    index, entry, NULL, 0, rec, offsets,
 					    &roll_ptr);
 	if (err != DB_SUCCESS) {
@@ -4851,7 +4851,7 @@ btr_cur_del_mark_set_clust_rec(
 
 	page_zip = buf_block_get_page_zip(block);
         // 设置delete mark
-	btr_rec_set_deleted_flag(rec, page_zip, TRUE);
+	btr_rec_set_deleted_flag(rec, page_zip, TRUE);                                                                  //#### 删除记录，设置记录的delete mark
 
 	/* For intrinsic table, roll-ptr is not maintained as there is no UNDO
 	logging. Skip updating it. */
@@ -4875,9 +4875,9 @@ btr_cur_del_mark_set_clust_rec(
 		row_log_table_delete(rec, entry, index, offsets, NULL);
 	}
 
-	row_upd_rec_sys_fields(rec, page_zip, index, offsets, trx, roll_ptr);
+	row_upd_rec_sys_fields(rec, page_zip, index, offsets, trx, roll_ptr);                                               //更新记录的事务id
 
-	btr_cur_del_mark_set_clust_rec_log(rec, index, trx->id,
+	btr_cur_del_mark_set_clust_rec_log(rec, index, trx->id,                                                             // 后写 redo log
 					   roll_ptr, mtr);
 
 	return(err);
@@ -5083,7 +5083,7 @@ btr_cur_compress_if_useful(
 	}
 
 	return(btr_cur_compress_recommendation(cursor, mtr)
-	       && btr_compress(cursor, adjust, mtr));
+	       && btr_compress(cursor, adjust, mtr));                                                                       //合并页面
 }
 
 /*******************************************************//**
@@ -5092,7 +5092,7 @@ It is assumed that the mtr has an x-latch on the page where the cursor is
 positioned, but no latch on the whole tree.
 @return TRUE if success, i.e., the page did not become too empty */
 ibool
-btr_cur_optimistic_delete_func(
+btr_cur_optimistic_delete_func(                                                                                         //### 异步回收主键索引【删除记录】空间 -- 乐观回收
 /*===========================*/
 	btr_cur_t*	cursor,	/*!< in: cursor on leaf page, on the record to
 				delete; cursor stays valid: if deletion
@@ -5135,7 +5135,7 @@ btr_cur_optimistic_delete_func(
 				  ULINT_UNDEFINED, &heap);
 
 	no_compress_needed = !rec_offs_any_extern(offsets)
-		&& btr_cur_can_delete_without_compress(
+		&& btr_cur_can_delete_without_compress(                                                                         //判断需不需要回收空间
 			cursor, rec_offs_size(offsets), mtr);
 
 	if (no_compress_needed) {
@@ -5292,7 +5292,7 @@ btr_cur_pessimistic_delete(
 #endif /* UNIV_ZIP_DEBUG */
 	}
 
-	if (UNIV_UNLIKELY(page_get_n_recs(page) < 2)
+	if (UNIV_UNLIKELY(page_get_n_recs(page) < 2)                                                                       //【非根页】页面只剩余1条记录，回收页面
 	    && UNIV_UNLIKELY(dict_index_get_page(index)
 			     != block->page.id.page_no())) {
 
@@ -5388,12 +5388,12 @@ btr_cur_pessimistic_delete(
 	/* Set allow merge to true for spatial indexes as the tree is X
         locked incase of delete operation on spatial indexes thus avoiding
         possibility of upward locking.*/
-		allow_merge = true;
+		allow_merge = true;                                                            //叶子节点，可以合并
 	} else {
 		allow_merge = btr_cur_will_modify_tree(index,page,BTR_INTENTION_DELETE,
                                         rec,rec_size_est,page_size,mtr);
 	}
-	page_cur_delete_rec(btr_cur_get_page_cur(cursor), index, offsets, mtr);
+	page_cur_delete_rec(btr_cur_get_page_cur(cursor), index, offsets, mtr);                                       //### 【一般情况】物理删除 -- 修改记录链表指针，垃圾空间+recSize
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
@@ -5407,7 +5407,7 @@ return_after_reservations:
 	mem_heap_free(heap);
 
 	if(!ret) {
-		bool do_merge = btr_cur_compress_recommendation(cursor,mtr);
+		bool do_merge = btr_cur_compress_recommendation(cursor,mtr);                                                    //空间利用率 < 50% ，压缩页面
 		/* We are not allowed do merge because appropriate locks
 		are not taken while positioning the cursor. */
 		if (!allow_merge && do_merge) {
@@ -5418,7 +5418,7 @@ return_after_reservations:
 			ut_ad(false);
 		} else if (do_merge) {
 
-			ret = btr_cur_compress_if_useful(cursor, FALSE, mtr);
+			ret = btr_cur_compress_if_useful(cursor, FALSE, mtr);                                                  //删后低于阈50%，合并页面，记录迁移到【左页面】或者【右页面】
 		}
 	}
 

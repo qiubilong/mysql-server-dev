@@ -3717,7 +3717,7 @@ crash:
 
 	state = xdes_get_state(descr, mtr);
 
-	if (state != XDES_FSEG) {
+	if (state != XDES_FSEG) {                                                                                           //归还【碎片页】
 		/* The page is in the fragment pages of the segment */
 
 		for (i = 0;; i++) {
@@ -3760,7 +3760,7 @@ crash:
 		/* The fragment is full: move it to another list */
 		flst_remove(seg_inode + FSEG_FULL,
 			    descr + XDES_FLST_NODE, mtr);
-		flst_add_last(seg_inode + FSEG_NOT_FULL,
+		flst_add_last(seg_inode + FSEG_NOT_FULL,                                                                        //归还段空间【区组】页
 			      descr + XDES_FLST_NODE, mtr);
 		mlog_write_ulint(seg_inode + FSEG_NOT_FULL_N_USED,
 				 not_full_n_used + FSP_EXTENT_SIZE - 1,
@@ -3773,7 +3773,7 @@ crash:
 
 	const ulint	bit = page_id.page_no() % FSP_EXTENT_SIZE;
 
-	xdes_set_bit(descr, XDES_FREE_BIT, bit, TRUE, mtr);
+	xdes_set_bit(descr, XDES_FREE_BIT, bit, TRUE, mtr);                                                      //设置该页面是空闲的
 	xdes_set_bit(descr, XDES_CLEAN_BIT, bit, TRUE, mtr);
 
 	if (xdes_is_free(descr, mtr)) {

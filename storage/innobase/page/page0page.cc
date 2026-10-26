@@ -830,7 +830,7 @@ page_copy_rec_list_start(
 						      &num_moved, mtr);
 	} else {
 
-		while (page_cur_get_rec(&cur1) != rec) {
+		while (page_cur_get_rec(&cur1) != rec) {                                                                         //## 遍历记录，合并到【左边】页面
 			rec_t*	cur1_rec = page_cur_get_rec(&cur1);
 			offsets = rec_get_offsets(cur1_rec, index, offsets,
 						  ULINT_UNDEFINED, &heap);

@@ -3459,7 +3459,7 @@ btr_compress(
 	/* Decide the page to which we try to merge and which will inherit
 	the locks */
 
-	is_left = btr_can_merge_with_page(cursor, left_page_no,
+	is_left = btr_can_merge_with_page(cursor, left_page_no,      //能否合并到左边
 					  &merge_block, mtr);
 
 	DBUG_EXECUTE_IF("ib_always_merge_right", is_left = FALSE;);
@@ -3544,7 +3544,7 @@ retry:
 				merge_block, block, index);
 		}
 
-		rec_t*	orig_pred = page_copy_rec_list_start(
+		rec_t*	orig_pred = page_copy_rec_list_start(                                                                   //## 合并到【左边】页面
 			merge_block, block, page_get_supremum_rec(page),
 			index, mtr);
 
@@ -3555,7 +3555,7 @@ retry:
 		btr_search_drop_page_hash_index(block);
 
 		/* Remove the page from the level list */
-		btr_level_list_remove(space, page_size, page, index, mtr);
+		btr_level_list_remove(space, page_size, page, index, mtr);                                                      //### 页面链表【移除】页面
 
 		if (dict_index_is_spatial(index)) {
 			rec_t*  my_rec = father_cursor.page_cur.rec;
@@ -3834,7 +3834,7 @@ retry:
 	}
 
 	/* Free the file page */
-	btr_page_free(index, block, mtr);
+	btr_page_free(index, block, mtr);                                                                                   //## 记录已经迁移，归还空闲页面 -- 加到【表空间空闲】页面链表
 
 	/* btr_check_node_ptr() needs parent block latched.
 	If the merge_block's parent block is not same,

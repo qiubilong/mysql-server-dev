@@ -150,3 +150,11 @@ CREATE TABLE `t2` (  -- t2表可以模拟主键排序再回表
    T2 DELETE：③ 行10 的 X 记录锁     → ④ 请求 uk('A') 项的 X 记录锁
  
 ```
+
+### 删除记录 storage\innobase\row\row0upd.cc:row_upd --> storage\innobase\btr\btr0cur.cc:btr_cur_del_mark_set_clust_rec 设置记录的delete mark
+   - purge 线程 1秒异步回收删除记录空间 storage\innobase\row\row0purge.cc:row_purge
+       - btr_cur_optimistic_delete 乐观回收 -- 删除后空间利用率<50%
+       - btr_cur_pessimistic_delete 悲观回收 -- 删除后空间利用率>50%，需要合并页面
+   - 每天集中删百万行 → undo log 暴涨、binlog 大事务 → 主从延迟明显，删除范围持有大量记录锁 + 间隙锁，阻塞并发插入、大量页同时跌破 50% 触发悲观路径（需树 X-latch + 兄弟页 latch），CPU/IO 抖动
+   - 方式上永远小批量（这是原则），时段上尽量低峰（这是优化）
+   - 删除跌破 50% → 悲观删除 → compress_if_useful → btr_compress 搬记录+锁迁移+摘链表+删父ptr → btr_page_free 归还页
