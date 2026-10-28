@@ -2581,7 +2581,7 @@ page_cur_parse_delete_rec(
 Deletes a record at the page cursor. The cursor is moved to the next
 record after the deleted one. */
 void
-page_cur_delete_rec(
+page_cur_delete_rec(                                                                                                    //修改记录链表指针，物理删除记录
 /*================*/
 	page_cur_t*		cursor,	/*!< in/out: a page cursor */
 	const dict_index_t*	index,	/*!< in: record descriptor */
@@ -2688,7 +2688,7 @@ page_cur_delete_rec(
 
 	/* 3. Remove the record from the linked list of records */
 
-	page_rec_set_next(prev_rec, next_rec);                                                                              //修改记录链表指针，物理删除
+	page_rec_set_next(prev_rec, next_rec);                                                                              //修改记录链表指针，物理删除记录
 
 	/* 4. If the deleted record is pointed to by a dir slot, update the
 	record pointer in slot. In the following if-clause we assume that

@@ -2544,7 +2544,7 @@ free disk space (2 pages) must be guaranteed to be available before
 this function is called.
 @return inserted record */
 rec_t*
-btr_page_split_and_insert(                                                                                               //### 页面拆分 && 新纪录插入
+btr_page_split_and_insert(                                                                                               //### 申请新页 & 页面拆分 && 新纪录插入
 /*======================*/
 	ulint		flags,	/*!< in: undo logging and locking flags */
 	btr_cur_t*	cursor,	/*!< in: cursor at which to insert; when the
@@ -3347,7 +3347,7 @@ page. If cursor is on the leaf level, mtr must also hold x-latches to the
 brothers, if they exist.
 @return TRUE on success */
 ibool
-btr_compress(
+btr_compress(                                                                                                           //## 不能合并到左边 & 不能合并到右边 -- 直接退出
 /*=========*/
 	btr_cur_t*	cursor,	/*!< in/out: cursor on the page to merge
 				or lift; the page must not be empty:
@@ -3465,7 +3465,7 @@ btr_compress(
 	DBUG_EXECUTE_IF("ib_always_merge_right", is_left = FALSE;);
 retry:
 	if (!is_left
-	   && !btr_can_merge_with_page(cursor, right_page_no, &merge_block,
+	   && !btr_can_merge_with_page(cursor, right_page_no, &merge_block,                                                 //## 不能合并到左边 & 不能合并到右边 -- 直接退出
 				       mtr)) {
 		if (!merge_block) {
 			merge_page = NULL;

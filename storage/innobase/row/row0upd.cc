@@ -415,7 +415,7 @@ field to be updated is stored externally in rec or update.
 @return TRUE if the update changes the size of some field in index or
 the field is external in rec or update */
 ibool
-row_upd_changes_field_size_or_external(
+row_upd_changes_field_size_or_external(                                                                                 //判断是不是可以inplace更新
 /*===================================*/
 	dict_index_t*	index,	/*!< in: index */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
@@ -431,7 +431,7 @@ row_upd_changes_field_size_or_external(
 	ut_ad(rec_offs_validate(NULL, index, offsets));
 	n_fields = upd_get_n_fields(update);
 
-	for (i = 0; i < n_fields; i++) {
+	for (i = 0; i < n_fields; i++) { //遍历更新字段
 		upd_field = upd_get_nth_field(update, i);
 
 		/* We should ignore virtual field if the index is not
@@ -442,7 +442,7 @@ row_upd_changes_field_size_or_external(
 		}
 
 		new_val = &(upd_field->new_val);
-		new_len = dfield_get_len(new_val);
+		new_len = dfield_get_len(new_val);                                                                              //新值长度
 
 		if (dfield_is_null(new_val) && !rec_offs_comp(offsets)) {
 			/* A bug fixed on Dec 31st, 2004: we looked at the
@@ -456,7 +456,7 @@ row_upd_changes_field_size_or_external(
 				0);
 		}
 
-		old_len = rec_offs_nth_size(offsets, upd_field->field_no);
+		old_len = rec_offs_nth_size(offsets, upd_field->field_no);                                                      //旧值长度
 
 		if (rec_offs_comp(offsets)
 		    && rec_offs_nth_sql_null(offsets,
@@ -470,8 +470,12 @@ row_upd_changes_field_size_or_external(
 
 			old_len = UNIV_SQL_NULL;
 		}
-                // 比较大小是不是不相等
-		if (dfield_is_ext(new_val) || old_len != new_len
+		/**
+			'ab' → 'cd'    2 == 2  FALSE，可原地（值变了但长度没变）
+			'ab' → 'abcd'  2 != 4  TRUE，页内先删后插
+			 INT 列任意改    4 == 4   FALSE，可原地
+		 */
+		if (dfield_is_ext(new_val) || old_len != new_len                                                                //字段长度一致就行
 		    || rec_offs_nth_extern(offsets, upd_field->field_no)) {
 
 			return(TRUE);
@@ -2506,7 +2510,7 @@ database applications.
 code or DB_LOCK_WAIT */
 static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
-row_upd_clust_rec_by_insert(
+row_upd_clust_rec_by_insert(                                                                                            // ### 索引字段更新 --> 悲观更新 -- 删除旧记录 & 插入新记录
 /*========================*/
 	ulint		flags,  /*!< in: undo logging and locking flags */
 	upd_node_t*	node,	/*!< in/out: row update node */
@@ -2573,7 +2577,7 @@ row_upd_clust_rec_by_insert(
 			goto check_fk;
 		}
                 // 删除记录， 更新记录的delete mark，生成undolog, 更新记录的trx_id、rollpoint
-		err = btr_cur_del_mark_set_clust_rec(
+		err = btr_cur_del_mark_set_clust_rec(                                                                           //### 删除旧记录
 			flags, btr_cur_get_block(btr_cur), rec, index, offsets,
 			thr, node->row, mtr);
 		if (err != DB_SUCCESS) {
@@ -2617,7 +2621,7 @@ check_fk:
 
 	mtr_commit(mtr);
         // 插入记录
-	err = row_ins_clust_index_entry(
+	err = row_ins_clust_index_entry(                                                                                    //### 插入新记录
 		index, entry, thr,
 		entry->get_n_ext(), false);
 	node->state = UPD_NODE_INSERT_CLUSTERED;
@@ -2634,7 +2638,7 @@ not change.
 code or DB_LOCK_WAIT */
 static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
-row_upd_clust_rec(
+row_upd_clust_rec(                                                                                                      //普通字段更新 --> inplace更新、乐观更新
 /*==============*/
 	ulint		flags,  /*!< in: undo logging and locking flags */
 	upd_node_t*	node,	/*!< in: row update node */
@@ -2674,14 +2678,14 @@ row_upd_clust_rec(
 	record to update */
 
 	if (node->cmpl_info & UPD_NODE_NO_SIZE_CHANGE) {
-                // 更新前后没有大小变化，所以比较简单
-		err = btr_cur_update_in_place(
+
+		err = btr_cur_update_in_place(                                                                                  /* ### 普通字段更新 -->  字段大小不变 -- inplace更新 */
 			flags | BTR_NO_LOCKING_FLAG, btr_cur,
 			offsets, node->update,
 			node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
 	} else {
                 // 乐观更新，如果空闲空间不够就会在下面进行悲观更新
-		err = btr_cur_optimistic_update(
+		err = btr_cur_optimistic_update(                                                                                // ### 普通字段更新 --> 当前页面空间充足 -- 乐观更新 --当前页面【先删后插】
 			flags | BTR_NO_LOCKING_FLAG, btr_cur,
 			&offsets, offsets_heap, node->update,
 			node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
@@ -2732,7 +2736,7 @@ row_upd_clust_rec(
 		heap = mem_heap_create(1024);
 	}
         // 悲观更新
-	err = btr_cur_pessimistic_update(
+	err = btr_cur_pessimistic_update(                                                                                    //##### 乐观更新失败 -->悲观更新 -- 物理删除旧记录&插入新记录
 		flags | BTR_NO_LOCKING_FLAG | BTR_KEEP_POS_FLAG, btr_cur,
 		&offsets, offsets_heap, heap, &big_rec,
 		node->update, node->cmpl_info,
@@ -2962,7 +2966,7 @@ row_upd_clust_step(                                                             
 	/* NOTE: the following function calls will also commit mtr */
         // delete操作其实就是更新，只是更新的是记录的delete mark
 	if (node->is_delete) {
-		err = row_upd_del_mark_clust_rec(                                                                               //#### 删除记录，只是更新的是记录的delete mark
+		err = row_upd_del_mark_clust_rec(                                                                               //#### 删除记录，只是更新的是记录的delete mark 标志
 			flags, node, index, offsets, thr, referenced, &mtr);
 
 		if (err == DB_SUCCESS) {
@@ -2983,18 +2987,17 @@ row_upd_clust_step(                                                             
 				     UT_LIST_GET_FIRST(node->columns));
 		row_upd_eval_new_vals(node->update);
 	}
-        // 如果更新字段不需要更新二级索引，或者更新的是聚集索引上的非索引字段，比如主键是id，如果更新name字段，name就是非索引字段，更新name不会影响到索引B+树的排序
+        /* 如果更新字段不需要更新二级索引，或者更新的是聚集索引上的非索引字段，比如主键是id，如果更新name字段，name就是非索引字段，更新name不会影响到索引B+树的排序 */
 	if (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE) {
-                // 更新聚集索引上的普通字段
-		err = row_upd_clust_rec(
+		err = row_upd_clust_rec(                                                                                        // ### 普通字段更新 --> inplace更新、乐观更新
 			flags, node, index, offsets, &heap, thr, &mtr);
 		goto exit_func;
 	}
 
-        // 把更新之前的记录内容存在node->row，把更新之后的记录内容存在node->upd_row
+        /* 把更新之前的记录内容存在node->row，把更新之后的记录内容存在node->upd_row */
 	row_upd_store_row(node, trx->mysql_thd,
 			  thr->prebuilt ? thr->prebuilt->m_mysql_table : NULL);
-        // 如果更新的是排序字段，也就是索引键，那么就是先把当前记录删除掉，把新记录插入进来
+        /*  如果更新的是排序字段，也就是索引键，那么就是先把当前记录删除掉，把新记录插入进来 */
 	if (row_upd_changes_ord_field_binary(index, node->update, thr,
 					     node->row, node->ext)) {
 
@@ -3009,7 +3012,7 @@ row_upd_clust_step(                                                             
 		choosing records to update. MySQL solves now the problem
 		externally! */
                 // 先删掉当前记录，再新增新记录
-		err = row_upd_clust_rec_by_insert(
+		err = row_upd_clust_rec_by_insert(                                                                              // ### 索引字段更新 --> 悲观更新 -- 删除旧记录 & 插入新记录
 			flags, node, index, thr, referenced, &mtr);
 
 		if (err != DB_SUCCESS) {
@@ -3019,7 +3022,7 @@ row_upd_clust_step(                                                             
 
 		node->state = UPD_NODE_UPDATE_ALL_SEC;
 	} else {
-                // 更新普通记录
+
 		err = row_upd_clust_rec(
 			flags, node, index, offsets, &heap, thr, &mtr);
 
@@ -3071,7 +3074,7 @@ row_upd(                                                                        
 		interpreter: we must calculate it on the fly: */
 
 		if (node->is_delete
-		    || row_upd_changes_some_index_ord_field_binary(
+		    || row_upd_changes_some_index_ord_field_binary( //update修改涉及【索引】排序 --> 悲观更新
 			    node->table, node->update)) {
 			node->cmpl_info = 0;
 		} else {
@@ -3097,7 +3100,7 @@ row_upd(                                                                        
 
 	DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
 			    "after_row_upd_clust");
-        // 本次update没有数据修改，不需要更新其他辅助索引
+        /* 本次update没有数据修改，不需要更新其他辅助索引 */
 	if (node->index == NULL
 	    || (!node->is_delete
 		&& (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE))) {
@@ -3117,7 +3120,7 @@ row_upd(                                                                        
 
 		if (node->index->type != DICT_FTS) {
 
-                        // 更新操作
+                        /* 更新操作 */
 			err = row_upd_sec_step(node, thr);                                                                          // 依次 删除、更新【二级索引】
 
 			if (err != DB_SUCCESS) {

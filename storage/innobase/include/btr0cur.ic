@@ -147,7 +147,7 @@ btr_cur_compress_recommendation(
 				      return(FALSE));
 
 	if ((page_get_data_size(page)
-	     < BTR_CUR_PAGE_COMPRESS_LIMIT(cursor->index))
+	     < BTR_CUR_PAGE_COMPRESS_LIMIT(cursor->index))    //页面利用率小于50%
 	    || ((btr_page_get_next(page, mtr) == FIL_NULL)
 		&& (btr_page_get_prev(page, mtr) == FIL_NULL))) {
 

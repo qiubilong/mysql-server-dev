@@ -1243,7 +1243,7 @@ page_delete_rec_list_start(
 		return;
 	}
 
-	if (page_rec_is_supremum(rec)) {          //### 连续主键id插入时，move_limit=supremum，不用遍历删除，直接重新初始化页面，效率高
+	if (page_rec_is_supremum(rec)) {                            //### 连续主键id插入时，move_limit=supremum，不用遍历删除，直接重新初始化页面，效率高
 		/* We are deleting all records. */
 		page_create_empty(block, index, mtr);
 		return;

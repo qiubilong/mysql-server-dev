@@ -1195,7 +1195,7 @@ pars_process_assign_list(
 				       clust_index, NULL);
 		upd_field->exp = assign_node->val;
 
-		if (!dict_col_get_fixed_size(
+		if (!dict_col_get_fixed_size(                                    //固定长度字段才能原地更新
 			    dict_index_get_nth_col(clust_index,
 						   upd_field->field_no),
 			    dict_table_is_comp(node->table))) {

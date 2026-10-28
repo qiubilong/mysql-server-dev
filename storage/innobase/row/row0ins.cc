@@ -3333,7 +3333,7 @@ row_ins_clust_index_entry(                                                      
 			BTR_MODIFY_LEAF, index, entry, n_ext, thr);
 	} else {
                 // 核心的插入操作，BTR_MODIFY_LEAF表示修改叶子节点，需要加X锁
-		err = row_ins_clust_index_entry_low(                                                                            //### 【用户记录】插入到【主键索引】叶子节点
+		err = row_ins_clust_index_entry_low(                                                                            //### 【用户记录】插入到【主键索引】叶子节点 -- 尝试乐观插入 -- 页内空间充足
 			flags, BTR_MODIFY_LEAF, index, n_uniq, entry,
 			n_ext, thr, dup_chk_only);
 	}
@@ -3362,7 +3362,7 @@ row_ins_clust_index_entry(                                                      
 		err = row_ins_sorted_clust_index_entry(
 			BTR_MODIFY_TREE, index, entry, n_ext, thr);
 	} else {
-		err = row_ins_clust_index_entry_low(
+		err = row_ins_clust_index_entry_low(                                                                            //乐观插入不成功 -- 悲观插入 -- 申请新页
 			flags, BTR_MODIFY_TREE, index, n_uniq, entry,
 			n_ext, thr, dup_chk_only);
 	}

@@ -2906,14 +2906,14 @@ btr_cur_insert_if_possible(
 	page_cursor = btr_cur_get_page_cur(cursor);
 
 	/* Now, try the insert */
-	rec = page_cur_tuple_insert(page_cursor, tuple, cursor->index,
+	rec = page_cur_tuple_insert(page_cursor, tuple, cursor->index,                                                      //插入新纪录
 				    offsets, heap, n_ext, mtr);
 
 	/* If the record did not fit, reorganize.
 	For compressed pages, page_cur_tuple_insert()
 	attempted this already. */
 	if (!rec && !page_cur_get_page_zip(page_cursor)
-	    && btr_page_reorganize(page_cursor, cursor->index, mtr)) {
+	    && btr_page_reorganize(page_cursor, cursor->index, mtr)) {//新记录插入失败，重组页面后再插入
 		rec = page_cur_tuple_insert(
 			page_cursor, tuple, cursor->index,
 			offsets, heap, n_ext, mtr);
@@ -3441,7 +3441,7 @@ btr_cur_pessimistic_insert(                                                     
 			flags, cursor, offsets, heap, entry, n_ext, mtr);
 	} else {
                 /* 普通页的拆分和插入，btr_root_raise_and_insert中其实也会调用到这个方法*/
-		*rec = btr_page_split_and_insert(                                                                               //### 【非根页】插入新记录 -- 页拆分
+		*rec = btr_page_split_and_insert(                                                                               //### 【非根页】插入新记录 -- 申请新页 & 页拆分
 			flags, cursor, offsets, heap, entry, n_ext, mtr);
 	}
 
@@ -3783,7 +3783,7 @@ We assume here that the ordering fields of the record do not change.
 @retval DB_ZIP_OVERFLOW if there is not enough space left
 on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
 dberr_t
-btr_cur_update_in_place(
+btr_cur_update_in_place(                                                                                                // ### 普通字段更新 -->  字段大小不变 -- inplace更新
 /*====================*/
 	ulint		flags,	/*!< in: undo logging and locking flags */
 	btr_cur_t*	cursor,	/*!< in: cursor on the record to update;
@@ -3848,7 +3848,7 @@ btr_cur_update_in_place(
 	}
 
 	/* Do lock checking and undo logging */
-	err = btr_cur_upd_lock_and_undo(flags, cursor, offsets,
+	err = btr_cur_upd_lock_and_undo(flags, cursor, offsets,                                                             //先写 undo log & 加 X 锁
 					update, cmpl_info,
 					thr, mtr, &roll_ptr);
 	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
@@ -3857,7 +3857,7 @@ btr_cur_update_in_place(
 		btr_cur_update_alloc_zip(). */
 		goto func_exit;
 	}
-        // 更新系统字段
+
 	if (!(flags & BTR_KEEP_SYS_FLAG)
 	    && !dict_table_is_intrinsic(index->table)) {
 		row_upd_rec_sys_fields(rec, NULL, index, offsets,
@@ -3890,13 +3890,13 @@ btr_cur_update_in_place(
 	}
 
 	assert_block_ahi_valid(block);
-	row_upd_rec_in_place(rec, index, offsets, update, page_zip);
+	row_upd_rec_in_place(rec, index, offsets, update, page_zip);                                                        //### inplace 更新字段
 
 	if (is_hashed) {
 		rw_lock_x_unlock(btr_get_search_latch(index));
 	}
 
-	btr_cur_update_in_place_log(flags, rec, index, update,
+	btr_cur_update_in_place_log(flags, rec, index, update,                                                              //后写 redo log
 				    trx_id, roll_ptr, mtr);
 
 	if (was_delete_marked
@@ -3937,7 +3937,7 @@ fields of the record do not change.
 @retval DB_ZIP_OVERFLOW if there is not enough space left
 on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
 dberr_t
-btr_cur_optimistic_update(
+btr_cur_optimistic_update(                                                                                              // ### 普通字段更新 --> 当前页面空间充足 -- 乐观更新 --当前页面【先删后插】
 /*======================*/
 	ulint		flags,	/*!< in: undo logging and locking flags */
 	btr_cur_t*	cursor,	/*!< in: cursor on the record to update;
@@ -4001,14 +4001,14 @@ btr_cur_optimistic_update(
 	     || trx_is_recv(thr_get_trx(thr)));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
         // 检查记录对应的更新字段在更新前后的大小是否发生了变化，如果没有变化，那就可以直接更新了
-	if (!row_upd_changes_field_size_or_external(index, *offsets, update)) {
+	if (!row_upd_changes_field_size_or_external(index, *offsets, update)) {                                             //【新旧值长度一致】就可以inplace更新
 
 		/* The simplest and the most common case: the update does not
 		change the size of any field and none of the updated fields is
 		externally stored in rec or update, and there is enough space
 		on the compressed page to log the update. */
 
-		return(btr_cur_update_in_place(
+		return(btr_cur_update_in_place(                                                                                 //#### 【新旧值长度一致】，走inplace更新
 			       flags, cursor, *offsets, update,
 			       cmpl_info, thr, trx_id, mtr));
 	}
@@ -4045,7 +4045,7 @@ any_extern:
 			+ DTUPLE_EST_ALLOC(rec_offs_n_fields(*offsets)));
 	}
 
-	new_entry = row_rec_to_index_entry(rec, index, *offsets,
+	new_entry = row_rec_to_index_entry(rec, index, *offsets, //生成新记录
 					   &n_ext, *heap);
 	/* We checked above that there are no externally stored fields. */
 	ut_a(!n_ext);
@@ -4072,14 +4072,18 @@ any_extern:
 
 		rec = page_cur_get_rec(page_cursor);
 	}
-
+																											/*
+																											  记录太大 → 可能分裂 → 要树锁 → 悲观
+																										      页太瘦 → 可能合并 → 要树锁 → 悲观
+																										      页内（含重组预算）装不下 → 可能分裂 → 要树锁 → 悲观
+																											 */
 	/* We limit max record size to 16k even for 64k page size. */
 	if (new_rec_size >= REC_MAX_DATA_SIZE) {
 		err = DB_OVERFLOW;
 
 		goto func_exit;
 	}
-
+    /* 新记录 ≥ 空页可用空间一半 */
 	if (UNIV_UNLIKELY(new_rec_size
 			  >= (page_get_free_space_of_empty(page_is_comp(page))
 			      / 2))) {
@@ -4089,6 +4093,8 @@ any_extern:
 		err = DB_OVERFLOW;
 		goto func_exit;
 	}
+
+	/* 更新后页数据量 < 页大小一半 , 只有“刚分裂的单记录新页”或“被删得很空的页”才可能命中 */
         // 计算更新之后当前页中的数据大小，如果太小了则会尝试将当前页的内容合并到兄弟页
 	if (UNIV_UNLIKELY(page_get_data_size(page)
 			  - old_rec_size + new_rec_size
@@ -4113,7 +4119,7 @@ any_extern:
 		max_ins_size = page_get_max_insert_size_after_reorganize(
 				page, 1);
 	}
-
+	/* 重组后的可用空间仍装不下新记录 */
 	if (!(((max_size >= BTR_CUR_PAGE_REORGANIZE_LIMIT)
 	       && (max_size >= new_rec_size))
 	      || (page_get_n_recs(page) <= 1))) {
@@ -4150,7 +4156,7 @@ any_extern:
 
 	btr_search_update_hash_on_delete(cursor);
         // 删除当前记录
-	page_cur_delete_rec(page_cursor, index, *offsets, mtr);
+	page_cur_delete_rec(page_cursor, index, *offsets, mtr);                                                             //物理删除旧记录
 
 	page_cur_move_to_prev(page_cursor);
 
@@ -4164,7 +4170,7 @@ any_extern:
 
 	/* There are no externally stored columns in new_entry */
         // 插入新记录
-	rec = btr_cur_insert_if_possible(
+	rec = btr_cur_insert_if_possible(                                                                                   //插入新记录
 		cursor, new_entry, offsets, heap, 0/*n_ext*/, mtr);
 	ut_a(rec); /* <- We calculated above the insert would fit */
 
@@ -4249,7 +4255,7 @@ own x-latches to brothers of page, if those brothers exist. We assume
 here that the ordering fields of the record do not change.
 @return DB_SUCCESS or error code */
 dberr_t
-btr_cur_pessimistic_update(
+btr_cur_pessimistic_update(                                                                                             //悲观更新 -- 物理删除旧记录 & 插入新纪录
 /*=======================*/
 	ulint		flags,	/*!< in: undo logging, locking, and rollback
 				flags */
@@ -4489,11 +4495,11 @@ btr_cur_pessimistic_update(
 #endif /* UNIV_ZIP_DEBUG */
 	page_cursor = btr_cur_get_page_cur(cursor);
         // 先删除记录
-	page_cur_delete_rec(page_cursor, index, *offsets, mtr);
+	page_cur_delete_rec(page_cursor, index, *offsets, mtr);                                                             //### 物理删除旧记录
 
 	page_cur_move_to_prev(page_cursor);
 
-	rec = btr_cur_insert_if_possible(cursor, new_entry,
+	rec = btr_cur_insert_if_possible(cursor, new_entry,                                                                 //### 当前页面插入新纪录 -- 乐观插入
 					 offsets, offsets_heap, n_ext, mtr);
 
 	if (rec) {
@@ -4512,8 +4518,8 @@ btr_cur_pessimistic_update(
 		}
 
 		bool adjust = big_rec_vec && (flags & BTR_KEEP_POS_FLAG);
-
-		if (btr_cur_compress_if_useful(cursor, adjust, mtr)) {
+		//## 不能合并到左边 & 不能合并到右边 -- 直接退出
+		if (btr_cur_compress_if_useful(cursor, adjust, mtr)) {                                                          //插入成功后，判断需要不需要合并页面
 			if (adjust) {
 				rec_offs_make_valid(
 					page_cursor->rec, index, *offsets);
@@ -4593,7 +4599,7 @@ btr_cur_pessimistic_update(
 	btr_cur_optimistic_insert() because
 	btr_cur_insert_if_possible() already failed above. */
         // btr_cur_insert_if_possible()失败了就直接执行悲观插入
-	err = btr_cur_pessimistic_insert(BTR_NO_UNDO_LOG_FLAG
+	err = btr_cur_pessimistic_insert(BTR_NO_UNDO_LOG_FLAG                                                           //### 悲观插入 -- 当前页面已满-- -- 申请新页 & 页拆分
 					 | BTR_NO_LOCKING_FLAG
 					 | BTR_KEEP_SYS_FLAG,
 					 cursor, offsets, offsets_heap,
@@ -5044,7 +5050,7 @@ brothers exist. NOTE: it is assumed that the caller has reserved enough
 free extents so that the compression will always succeed if done!
 @return TRUE if compression occurred */
 ibool
-btr_cur_compress_if_useful(
+btr_cur_compress_if_useful(                                                                                             //## 不能合并到左边 & 不能合并到右边 -- 直接退出
 /*=======================*/
 	btr_cur_t*	cursor,	/*!< in/out: cursor on the page to compress;
 				cursor does not stay valid if !adjust and
@@ -5081,7 +5087,7 @@ btr_cur_compress_if_useful(
 			return(false);
 		}
 	}
-
+	//页面利用率小于50%
 	return(btr_cur_compress_recommendation(cursor, mtr)
 	       && btr_compress(cursor, adjust, mtr));                                                                       //合并页面
 }
@@ -5417,7 +5423,7 @@ return_after_reservations:
 				"Index name\n" << index->name;
 			ut_ad(false);
 		} else if (do_merge) {
-
+			//## 不能合并到左边 & 不能合并到右边 -- 直接退出
 			ret = btr_cur_compress_if_useful(cursor, FALSE, mtr);                                                  //删后低于阈50%，合并页面，记录迁移到【左页面】或者【右页面】
 		}
 	}

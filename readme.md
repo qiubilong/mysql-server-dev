@@ -158,3 +158,9 @@ CREATE TABLE `t2` (  -- t2表可以模拟主键排序再回表
    - 每天集中删百万行 → undo log 暴涨、binlog 大事务 → 主从延迟明显，删除范围持有大量记录锁 + 间隙锁，阻塞并发插入、大量页同时跌破 50% 触发悲观路径（需树 X-latch + 兄弟页 latch），CPU/IO 抖动
    - 方式上永远小批量（这是原则），时段上尽量低峰（这是优化）
    - 删除跌破 50% → 悲观删除 → compress_if_useful → btr_compress 搬记录+锁迁移+摘链表+删父ptr → btr_page_free 归还页
+
+### 更新记录 storage\innobase\row\row0upd.cc:row_upd  --> row_upd_clust_rec 
+        --> inplace更新 btr_cur_update_in_place -- 【新旧值长度一致】 row_upd_changes_field_size_or_external
+        --> 普通字段【页内】乐观更新 btr_cur_optimistic_update  -- 先删除后插入 -- 页内空间充足 -- 空间利用率< 50% -- 不能合并到左边 & 不能合并到右边 -- 直接退出 
+                                                                          --页面已满 -- 物理删除 -- 申请新页悲观插入
+        --> 涉及【索引字段】悲观更新 row_upd_clust_rec_by_insert -- 先删除后插入 -- 可能需要申请新页 ------这是因为索引数值变化了，新纪录大概率落到其他页
