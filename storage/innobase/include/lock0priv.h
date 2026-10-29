@@ -115,7 +115,7 @@ operator<<(std::ostream& out, const lock_rec_t& lock)
 }
 
 /** Lock struct; protected by lock_sys->mutex */
-struct lock_t {
+struct lock_t {                                                                                                         //锁对象
 	trx_t*		trx;		/*!< transaction owning the
 					lock */
 	UT_LIST_NODE_T(lock_t)
@@ -131,12 +131,12 @@ struct lock_t {
 					lock. The link node in a singly linked
 					list, used during hashing. */
 
-	union {
+	union {                                                                                                             //行锁 或 表锁
 		lock_table_t	tab_lock;/*!< table lock */
 		lock_rec_t	rec_lock;/*!< record lock */
 	} un_member;			/*!< lock details 只能二选一*/
 
-	ib_uint32_t	type_mode;	/*!< lock type, mode, LOCK_GAP or
+	ib_uint32_t	type_mode;	/*!< lock type, mode, LOCK_GAP or                                                           // 锁标记       xxxxxxxxxx锁类型：next-key/间隙锁/行锁   xxxxxxxx锁属性 X/S   xxxx锁类型：行锁/表锁
 					LOCK_REC_NOT_GAP,
 					LOCK_INSERT_INTENTION,
 					wait flag, ORed */
@@ -622,7 +622,7 @@ struct RecID {
 		m_space_id(block->page.id.space()),
 		m_page_no(block->page.id.page_no()),
 		m_heap_no(static_cast<uint32_t>(heap_no)),
-		m_fold(lock_rec_fold(m_space_id, m_page_no))
+		m_fold(lock_rec_fold(m_space_id, m_page_no))                                                                    // 锁对象hash值 = spaceId + pageNo
 	{
 		ut_ad(heap_no < UINT32_MAX);
 	}

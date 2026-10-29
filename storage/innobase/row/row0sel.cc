@@ -1229,7 +1229,7 @@ Sets a lock on a record.
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
 UNIV_INLINE
 dberr_t
-sel_set_rec_lock(
+sel_set_rec_lock(                                                                                                       //记录加锁
 /*=============*/
 	btr_pcur_t*		pcur,	/*!< in: cursor */
 	const rec_t*		rec,	/*!< in: record */
@@ -1258,7 +1258,7 @@ sel_set_rec_lock(
 
 	if (dict_index_is_clust(index)) {
                 // 聚集索引
-		err = lock_clust_rec_read_check_and_lock(
+		err = lock_clust_rec_read_check_and_lock(                                                                       //【主键索引】加锁
 			0, block, rec, index, offsets,
 			static_cast<lock_mode>(mode), type, thr);
 	} else {
@@ -1274,7 +1274,7 @@ sel_set_rec_lock(
 						   mode, type, thr, mtr);
 		} else {
                         // 辅助索引
-			err = lock_sec_rec_read_check_and_lock(
+			err = lock_sec_rec_read_check_and_lock(                                                                     //【二级索引】加锁
 				0, block, rec, index, offsets,
 				static_cast<lock_mode>(mode), type, thr);
 		}
@@ -4817,7 +4817,7 @@ row_search_mvcc(                                                                
 			prebuilt->fetch_direction = direction;
 		}
 
-                //
+
 		if (UNIV_UNLIKELY(direction != prebuilt->fetch_direction)) {
 			if (UNIV_UNLIKELY(prebuilt->n_fetch_cached > 0)) {
 				ut_error;
@@ -5614,7 +5614,7 @@ wrong_offs:
 		    || (unique_search && !rec_get_deleted_flag(rec, comp))
 		    || dict_index_is_spatial(index)) {
 
-			goto no_gap_lock;
+			goto no_gap_lock;                                                                                           // RC级别 、 唯一主键 -->  行锁
 		} else {
 			lock_type = LOCK_ORDINARY;
 		}
@@ -5640,7 +5640,7 @@ no_gap_lock:
 			lock_type = LOCK_REC_NOT_GAP;
 		}
 
-		err = sel_set_rec_lock(pcur,                                                                                    // 给某一行记录加锁
+		err = sel_set_rec_lock(pcur,                                                                                    // ### select for update 或者 in share mode,  给某一行记录加锁
 				       rec, index, offsets,
 				       prebuilt->select_lock_type,
 				       lock_type, thr, &mtr);
@@ -5671,7 +5671,7 @@ no_gap_lock:
 			    || unique_search
 			    || index != clust_index) {
 
-				goto lock_wait_or_error;
+				goto lock_wait_or_error;//挂起线程等待
 			}
 
 			/* The following call returns 'offsets'

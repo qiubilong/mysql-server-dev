@@ -947,7 +947,7 @@ lock_trx_alloc_locks(trx_t* trx);
 /** Lock types */
 /* @{ */
 #define LOCK_TABLE	16	/*!< table lock */
-#define	LOCK_REC	32	/*!< record lock */
+#define	LOCK_REC	32	/*!< record lock */                                                                             //行锁
 #define LOCK_TYPE_MASK	0xF0UL	/*!< mask used to extract lock type from the
 				type_mode field in a lock */
 #if LOCK_MODE_MASK & LOCK_TYPE_MASK
@@ -959,17 +959,17 @@ lock_trx_alloc_locks(trx_t* trx);
 				granted, it is just waiting for its
 				turn in the wait queue */
 /* Precise modes */
-#define LOCK_ORDINARY	0	/*!< this flag denotes an ordinary                               // 临键锁
+#define LOCK_ORDINARY	0	/*!< this flag denotes an ordinary                                                          // 临键锁 next-key = 行锁 + 间隙锁
 				next-key lock in contrast to LOCK_GAP
 				or LOCK_REC_NOT_GAP */
-#define LOCK_GAP	512	/*!< when this bit is set, it means that the                         // 间隙锁
+#define LOCK_GAP	512	/*!< when this bit is set, it means that the                                                    // 间隙锁 -- 比较少用
 				lock holds only on the gap before the record;
 				for instance, an x-lock on the gap does not
 				give permission to modify the record on which
 				the bit is set; locks of this type are created
 				when records are removed from the index chain
 				of records */
-#define LOCK_REC_NOT_GAP 1024	/*!< this bit means that the lock is only on                 // 行锁
+#define LOCK_REC_NOT_GAP 1024	/*!< this bit means that the lock is only on                                            // 行锁
 				the index record and does NOT block inserts
 				to the gap before the index record; this is
 				used in the case when we retrieve a record
@@ -977,7 +977,7 @@ lock_trx_alloc_locks(trx_t* trx);
 				locking plain SELECTs (not part of UPDATE
 				or DELETE) when the user has set the READ
 				COMMITTED isolation level */
-#define LOCK_INSERT_INTENTION 2048 /*!< this bit is set when we place a waiting
+#define LOCK_INSERT_INTENTION 2048 /*!< this bit is set when we place a waiting                                         // 插入意向锁
 				gap type record lock request in order to let
 				an insert of an index record to wait until
 				there are no conflicting locks by other
@@ -1000,7 +1000,7 @@ lock_trx_alloc_locks(trx_t* trx);
 /** Lock operation struct */
 struct lock_op_t{
 	dict_table_t*	table;	/*!< table to be locked */
-	lock_mode	mode;	/*!< lock mode */
+	lock_mode	mode;	/*!< lock mode */                                                                               //锁模式 X/S
 };
 
 typedef ib_mutex_t LockMutex;

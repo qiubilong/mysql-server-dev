@@ -164,3 +164,10 @@ CREATE TABLE `t2` (  -- t2表可以模拟主键排序再回表
         --> 普通字段【页内】乐观更新 btr_cur_optimistic_update  -- 先删除后插入 -- 页内空间充足 -- 空间利用率< 50% -- 不能合并到左边 & 不能合并到右边 -- 直接退出 
                                                                           --页面已满 -- 物理删除 -- 申请新页悲观插入
         --> 涉及【索引字段】悲观更新 row_upd_clust_rec_by_insert -- 先删除后插入 -- 可能需要申请新页 ------这是因为索引数值变化了，新纪录大概率落到其他页
+
+### 加锁 storage\innobase\row\row0sel.cc:sel_set_rec_lock --> lock_rec_lock_fast 、lock_rec_lock_slow -- InnoDB 记录锁默认是 FIFO 排队
+  ### 锁对象 storage\innobase\include\lock0priv.h:lock_t
+  ### 锁创建 storage\innobase\lock\lock0lock.cc:create
+  ### 锁释放 storage\innobase\lock\lock0lock.cc:lock_rec_dequeue_from_page
+
+    -- // 锁标记 int type_mode  ==   xxxxxxxxxx锁类型：next-key/间隙锁/行锁   xxxxxxxx锁属性 X/S   xxxx锁类型：行锁/表锁

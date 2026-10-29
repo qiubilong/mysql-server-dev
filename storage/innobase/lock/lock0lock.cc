@@ -805,8 +805,8 @@ lock_rec_get_insert_intention(
 Checks if a lock request for a new lock has to wait for request lock2.
 @return TRUE if new lock has to wait for lock2 to be removed */
 UNIV_INLINE
-ibool
-lock_rec_has_to_wait(
+ibool                                                                                                                   // 读 vs 写不兼容, 两个【GAP锁】赦免
+lock_rec_has_to_wait(                                                                                                   //检查是否锁冲突 --XS锁冲突下： 普通 GAP兼容， 两个锁中都包含了【行锁】才需要等，例如 临键锁-临键锁、临键锁-行锁、行锁-行锁
 /*=================*/
 	const trx_t*	trx,	/*!< in: trx of new lock */
 	ulint		type_mode,/*!< in: precise mode of the new lock
@@ -830,14 +830,14 @@ lock_rec_has_to_wait(
         if (trx != lock2->trx
 	    && !lock_mode_compatible(static_cast<lock_mode>(
 			             LOCK_MODE_MASK & type_mode),
-				     lock_get_mode(lock2))) {
+				     lock_get_mode(lock2))) {   //  不同事务 & 锁类型不兼容，才需判断
 
 		/* We have somewhat complex rules when gap type record locks
 		cause waits */
                 // 如果当前行是最大记录，那么表示加的就是GAP锁
                 // 如果当前想加的是GAP锁，并且当前不是insert，那么根本不用判断lock2的类型，一定会兼容，不需要等待任何其他锁
 		if ((lock_is_on_supremum || (type_mode & LOCK_GAP))
-		    && !(type_mode & LOCK_INSERT_INTENTION)) {
+		    && !(type_mode & LOCK_INSERT_INTENTION)) {                                                                  // 最大记录一定是GAP锁，GAP锁一定兼容
 
 			/* Gap type locks without LOCK_INSERT_INTENTION flag
 			do not need to wait for anything. This is because
@@ -849,7 +849,7 @@ lock_rec_has_to_wait(
 
                 // 和上面类似，如果当前不是insert，并且lock2是GAP锁，也不会冲突，也一定是兼容的，也不需要等待，可以直接加
 		if (!(type_mode & LOCK_INSERT_INTENTION)
-		    && lock_rec_get_gap(lock2)) {
+		    && lock_rec_get_gap(lock2)) {                                                                               //记录非【最大记录】，但是加【GAP锁】，GAP锁一定兼容
 
 			/* Record lock (LOCK_ORDINARY or LOCK_REC_NOT_GAP
 			does not need to wait for a gap type lock */
@@ -1116,7 +1116,7 @@ to precise_mode.
 @return lock or NULL */
 UNIV_INLINE
 lock_t*
-lock_rec_has_expl(
+lock_rec_has_expl(                                                                       // 已有锁为X，现在想加S，则 X≥S，已有锁的范围覆盖新请求，直接复用
 /*==============*/
 	ulint			precise_mode,/*!< in: LOCK_S or LOCK_X
 					possibly ORed to LOCK_GAP or
@@ -1138,7 +1138,7 @@ lock_rec_has_expl(
         // 遍历当前记录的锁列表
 	for (lock = lock_rec_get_first(lock_sys->rec_hash, block, heap_no);
 	     lock != NULL;
-	     lock = lock_rec_get_next(heap_no, lock)) {
+	     lock = lock_rec_get_next(heap_no, lock)) {                                                                     //遍历这一页的锁对象
                 // mode表示想要加的锁mode
                 // 以下逻辑用来判断当前事务中已有锁的限制范围是否大于想要加的锁的限制范围，如果是，则直接方法当前事务中的锁
                 // 前提条件是
@@ -1153,18 +1153,19 @@ lock_rec_has_expl(
                 // 如果当前事务中，heap_no对应的行是SUPREMUM，则不管已有的锁是gap还是not_gap，直接利用，加锁成功
 		if (lock->trx == trx
 		    && !lock_rec_get_insert_intention(lock)
-		    && lock_mode_stronger_or_eq(
+		    && lock_mode_stronger_or_eq(                                                                                //强度够：X≥X、X≥S、S≥S；S 覆盖不了 X
 			    lock_get_mode(lock),
 			    static_cast<lock_mode>(
 				    precise_mode & LOCK_MODE_MASK))
 		    && !lock_get_wait(lock)
-		    && (!lock_rec_get_rec_not_gap(lock)
+		    && (!lock_rec_get_rec_not_gap(lock)   //已有纯记录锁（带 NOT_GAP）：只能罩住“想要记录锁”的请求
 			|| (precise_mode & LOCK_REC_NOT_GAP)
 			|| heap_no == PAGE_HEAP_NO_SUPREMUM)
-		    && (!lock_rec_get_gap(lock)
+		    && (!lock_rec_get_gap(lock)          //已有纯间隙锁（带 GAP）：只能罩住“想要间隙锁”的请求
 			|| (precise_mode & LOCK_GAP)
 			|| heap_no == PAGE_HEAP_NO_SUPREMUM)) {
 
+			//已有 next-key 锁（GAP、NOT_GAP 两个标志都没有）：5a/5b 的 ! 条件天然为真 → 覆盖一切想要的模式（next-key 本来就同时罩住间隙+记录
 			return(lock);
 		}
 	}
@@ -1243,9 +1244,9 @@ lock_rec_other_has_conflicting(
 
 	for (lock = lock_rec_get_first(lock_sys->rec_hash, block, heap_no);
 	     lock != NULL;
-	     lock = lock_rec_get_next_const(heap_no, lock)) {
+	     lock = lock_rec_get_next_const(heap_no, lock)) {    //遍历页锁lock对象列表
                 // lock对象表示当前事务需要等待释放的锁对象
-		if (lock_rec_has_to_wait(trx, mode, lock, is_supremum)) {
+		if (lock_rec_has_to_wait(trx, mode, lock, is_supremum)) {                                                       //检查是否锁冲突 -- 两个锁都包含了【行锁】才会冲突，GAP锁不冲突
 			return(lock);
 		}
 	}
@@ -1530,7 +1531,7 @@ Add the lock to the record lock hash and the transaction's lock list
 @param[in,out] lock	Newly created record lock to add to the rec hash
 @param[in] add_to_hash	If the lock should be added to the hash table */
 void
-RecLock::lock_add(lock_t* lock, bool add_to_hash)
+RecLock::lock_add(lock_t* lock, bool add_to_hash)                                                                       //## lock_t 加到 系统锁记录hash表
 {
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_mutex_own(lock->trx));
@@ -1560,7 +1561,7 @@ Create a new lock.
 @param[in] prdt			Predicate lock (optional)
 @return a new lock instance */
 lock_t*
-RecLock::create(
+RecLock::create(                                                                                                        //创建锁对象
 	trx_t*	trx,
 	bool	owns_trx_mutex,
 	bool	add_to_hash,
@@ -1571,7 +1572,7 @@ RecLock::create(
 
 	/* Create the explicit lock instance and initialise it. */
         // 创建和初始化一个lock_t实例化对象，设置事务、索引、type_mode、heap_no对应的行标志位
-	lock_t*	lock = lock_alloc(trx, m_index, m_mode, m_rec_id, m_size);
+	lock_t*	lock = lock_alloc(trx, m_index, m_mode, m_rec_id, m_size);                                                  // ## 创建锁对象lock_t
 
 	if (prdt != NULL && (m_mode & LOCK_PREDICATE)) {
 
@@ -1586,7 +1587,7 @@ RecLock::create(
 		trx_mutex_enter(trx);
 	}
         // 将lock_t对象添加到lock_sys的rec_hash中，以及trx的lock.trx_locks中
-	lock_add(lock, add_to_hash);
+	lock_add(lock, add_to_hash);                                                                                        //## lock_t 加到 系统锁记录hash表
 
 	if (!owns_trx_mutex) {
 		trx_mutex_exit(trx);
@@ -1759,7 +1760,7 @@ RecLock::add_to_waitq(const lock_t* wait_for, const lock_prdt_t* prdt)
 
 	/* Don't queue the lock to hash table, if high priority transaction. */
         // 如果事务优先级比较高，则lock_t对象不需要添加到lock_sys中去
-	lock_t*	lock = create(m_trx, true, !high_priority, prdt);
+	lock_t*	lock = create(m_trx, true, !high_priority, prdt);                                     //创建锁对象
 
 	/* Attempt to jump over the low priority waiting locks. */
 	if (high_priority && jump_queue(lock, wait_for)) {
@@ -1796,7 +1797,7 @@ which does NOT check for deadlocks or lock compatibility!
 @return lock where the bit was set */
 static
 void
-lock_rec_add_to_queue(
+lock_rec_add_to_queue(                                                                                                   //### 无锁冲突，获锁成功，创建锁对象
 /*==================*/
 	ulint			type_mode,/*!< in: lock mode, wait, gap
 					etc. flags; type is ignored
@@ -1834,7 +1835,7 @@ lock_rec_add_to_queue(
 	}
 #endif /* UNIV_DEBUG */
 
-	type_mode |= LOCK_REC;
+	type_mode |= LOCK_REC; //行锁
 
 	/* If rec is the supremum record, then we can reset the gap bit, as
 	all locks on the supremum are automatically of the gap type, and we
@@ -1847,7 +1848,7 @@ lock_rec_add_to_queue(
 		/* There should never be LOCK_REC_NOT_GAP on a supremum
 		record, but let us play safe */
 
-		type_mode &= ~(LOCK_GAP | LOCK_REC_NOT_GAP);
+		type_mode &= ~(LOCK_GAP | LOCK_REC_NOT_GAP); //最大记录只能是 间隙锁
 	}
 
 	lock_t*		lock;
@@ -1873,7 +1874,7 @@ lock_rec_add_to_queue(
 		if one is found and there are no waiting lock requests,
 		we can just set the bit */
 
-		lock = lock_rec_find_similar_on_page(
+		lock = lock_rec_find_similar_on_page(//同一个事务，同一页加锁，直接设置记录bit位
 			type_mode, heap_no, first_lock, trx);
 
 		if (lock != NULL) {
@@ -1886,7 +1887,7 @@ lock_rec_add_to_queue(
 
 	RecLock		rec_lock(index, block, heap_no, type_mode);
 
-	rec_lock.create(trx, caller_owns_trx_mutex, true);
+	rec_lock.create(trx, caller_owns_trx_mutex, true);                                                        //### 创建锁对象
 }
 
 /*********************************************************************//**
@@ -1901,7 +1902,7 @@ a page supremum record, a gap type lock.
 @return whether the locking succeeded */
 UNIV_INLINE
 lock_rec_req_status
-lock_rec_lock_fast(
+lock_rec_lock_fast(                                                                                                     //快路径加锁 -- 一个page只有一个lock_t对象
 /*===============*/
 	bool			impl,	/*!< in: if TRUE, no lock is set
 					if no wait is necessary: we
@@ -1948,7 +1949,7 @@ lock_rec_lock_fast(
 
 			/* Note that we don't own the trx mutex. */
                         // 创建lock_t对象并给相应属性赋值，并根据heap_no将对应bit位设置为true，表示加锁成功
-			rec_lock.create(trx, false, true);
+			rec_lock.create(trx, false, true);                                                    // ### 锁不存在 --> 创建对象
 		}
 
 		status = LOCK_REC_SUCCESS_CREATED;
@@ -1991,7 +1992,7 @@ lock, or in the case of a page supremum record, a gap type lock.
 or DB_QUE_THR_SUSPENDED */
 static
 dberr_t
-lock_rec_lock_slow(
+lock_rec_lock_slow(                                                                                                     //慢路径加锁 -- 锁冲突就挂起线程等待
 /*===============*/
 	ibool			impl,	/*!< in: if TRUE, no lock is set
 					if no wait is necessary: we
@@ -2030,7 +2031,7 @@ lock_rec_lock_slow(
         // mode表示想要加的锁mode
         // 从当前事务中找到heap_no对应的已有锁，如果已有锁的范围大于现在要加的锁，则不用加锁了，直接加锁成功
         // 注意，得是同一个事务
-	if (lock_rec_has_expl(mode, block, heap_no, trx)) {
+	if (lock_rec_has_expl(mode, block, heap_no, trx)) {                                                                 /* 已经持有锁范围扩大，X≥X、X≥S、S≥S */
 
 		/* The trx already has a strong enough lock on rec: do
 		nothing */
@@ -2039,7 +2040,7 @@ lock_rec_lock_slow(
 
 	} else {
                 // wait_for表示需要等待释放的锁对象
-		const lock_t* wait_for = lock_rec_other_has_conflicting(
+		const lock_t* wait_for = lock_rec_other_has_conflicting(                                                        // ### 检查是否锁冲突-- 两个锁都包含了【行锁】才会冲突，GAP锁不冲突
 			mode, block, heap_no, trx);
 
                 // 需要等待，则创建一个新锁对象，并修改状态为wait，并且记录等待wait_for释放
@@ -2052,14 +2053,14 @@ lock_rec_lock_slow(
 
 			RecLock	rec_lock(thr, index, block, heap_no, mode);
 
-			err = rec_lock.add_to_waitq(wait_for);
+			err = rec_lock.add_to_waitq(wait_for);                                                                      //### 锁冲突，挂起线程等待
 
 		} else if (!impl) {
 
 			/* Set the requested lock on the record, note that
 			we already own the transaction mutex. */
                         // 一个事务
-			lock_rec_add_to_queue(
+			lock_rec_add_to_queue(                                                                                      //### 无锁冲突，获锁成功，创建锁对象
 				LOCK_REC | mode, block, heap_no, index, trx,
 				true);
 
@@ -2084,7 +2085,7 @@ of a page supremum record, a gap type lock.
 or DB_QUE_THR_SUSPENDED */
 static
 dberr_t
-lock_rec_lock(
+lock_rec_lock(                                                                                                          //记录加锁
 /*==========*/
 	bool			impl,	/*!< in: if true, no lock is set
 					if no wait is necessary: we
@@ -2121,14 +2122,14 @@ lock_rec_lock(
 
         // 比如同一个事务中，对同一page中的不同的两行记录，都加LOCK_REC_NOT_GAP类型的锁，那么此时就能公用一个lock_t对象进行快速加锁成功
         // 前提是，这个page只有一个lock_t对象，如果有多个，则无法快速决定用哪个一个lock_t对象
-switch (lock_rec_lock_fast(impl, mode, block, heap_no, index, thr)) {
+switch (lock_rec_lock_fast(impl, mode, block, heap_no, index, thr)) {                                                   //快路径加锁 -- 一个page只有一个lock_t对象或者无锁对象
 	case LOCK_REC_SUCCESS:
 		return(DB_SUCCESS);
 	case LOCK_REC_SUCCESS_CREATED:
 		return(DB_SUCCESS_LOCKED_REC);
 	case LOCK_REC_FAIL:
                 // 如果不满足快速加锁的条件，则会快速加锁失败，则要进行慢速加锁
-		return(lock_rec_lock_slow(impl, mode, block,
+		return(lock_rec_lock_slow(impl, mode, block,                                                                    // ### 慢路径加锁 -- 锁冲突就挂起
 					  heap_no, index, thr));
 	}
 
@@ -2167,7 +2168,7 @@ lock_rec_has_to_wait_in_queue(
 	hash = lock_hash_get(wait_lock->type_mode);
 
 	for (lock = lock_rec_get_first_on_page_addr(hash, space, page_no);
-	     lock != wait_lock;
+	     lock != wait_lock; //相当于遍历锁对象的前面的锁列表
 	     lock = lock_rec_get_next_on_page_const(lock)) {
 
                 // bit区域
@@ -2503,7 +2504,7 @@ lock_rec_cancel(
 				locks waiting behind this lock object */
 static
 void
-lock_rec_grant(lock_t* in_lock)
+lock_rec_grant(lock_t* in_lock)                                                                                         //唤醒锁等待者
 {
 	lock_t*		lock;
 
@@ -2521,7 +2522,7 @@ lock_rec_grant(lock_t* in_lock)
 	     lock = lock_rec_get_next_on_page(lock)) {
 
 		if (lock_get_wait(lock)
-		    && !lock_rec_has_to_wait_in_queue(lock)) {
+		    && !lock_rec_has_to_wait_in_queue(lock)) {                 //对每个等待者，检查从队头到它自己为止的所有锁（has_to_wait_in_queue），若无人阻挡则唤醒"
 
 			/* Grant the lock */
 			ut_ad(lock->trx != in_lock->trx);
@@ -2535,7 +2536,7 @@ Removes a record lock request, waiting or granted, from the queue and
 grants locks to other transactions in the queue if they now are entitled
 to a lock. NOTE: all record locks contained in in_lock are removed. */
 void
-lock_rec_dequeue_from_page(
+lock_rec_dequeue_from_page(                                                                                             //锁释放
 /*=======================*/
 	lock_t*		in_lock)	/*!< in: record lock object: all
 					record locks which are contained in
@@ -2564,14 +2565,14 @@ lock_rec_dequeue_from_page(
 	lock_hash = lock_hash_get(in_lock->type_mode);
 
 	HASH_DELETE(lock_t, hash, lock_hash,
-		    lock_rec_fold(space, page_no), in_lock);
+		    lock_rec_fold(space, page_no), in_lock);  //删除锁对象
 
 	UT_LIST_REMOVE(trx_lock->trx_locks, in_lock);
 
 	MONITOR_INC(MONITOR_RECLOCK_REMOVED);
 	MONITOR_DEC(MONITOR_NUM_RECLOCK);
 
-	lock_rec_grant(in_lock);
+	lock_rec_grant(in_lock); //唤醒锁等待者
 }
 
 /*************************************************************//**
@@ -6437,7 +6438,7 @@ lock on the record.
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 or DB_QUE_THR_SUSPENDED */
 dberr_t
-lock_clust_rec_read_check_and_lock(
+lock_clust_rec_read_check_and_lock(                                                                                     //【主键索引】加锁
 /*===============================*/
 	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
 					bit is set, does nothing */
@@ -6489,7 +6490,7 @@ lock_clust_rec_read_check_and_lock(
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
 
         // 加锁
-	err = lock_rec_lock(FALSE, mode | gap_mode, block, heap_no, index, thr);
+	err = lock_rec_lock(FALSE, mode | gap_mode, block, heap_no, index, thr);                                        //### 加锁
 
 	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
 
@@ -7674,7 +7675,7 @@ transaction was chosen as a victim and rolled back or no deadlock found.
 
 @return transaction instanace chosen as victim or 0 */
 const trx_t*
-DeadlockChecker::check_and_resolve(const lock_t* lock, trx_t* trx)
+DeadlockChecker::check_and_resolve(const lock_t* lock, trx_t* trx)                                                      //死锁检测
 {
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_mutex_own(trx));
