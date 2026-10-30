@@ -1653,7 +1653,7 @@ struct dict_table_t {																									// ## 表定义
 	ib_mutex_t*				autoinc_mutex;
 
 	/** Autoinc counter value to give to the next inserted row. */
-	ib_uint64_t				autoinc;
+	ib_uint64_t				autoinc;                                                                                    // id自增值
 
 	/** This counter is used to track the number of granted and pending
 	autoinc locks on this table. This value is set after acquiring the

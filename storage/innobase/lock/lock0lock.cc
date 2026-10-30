@@ -830,14 +830,14 @@ lock_rec_has_to_wait(                                                           
         if (trx != lock2->trx
 	    && !lock_mode_compatible(static_cast<lock_mode>(
 			             LOCK_MODE_MASK & type_mode),
-				     lock_get_mode(lock2))) {   //  不同事务 & 锁类型不兼容，才需判断
+				     lock_get_mode(lock2))) {                                                                           //  不同事务 & 锁类型不兼容，才需判断
 
 		/* We have somewhat complex rules when gap type record locks
 		cause waits */
                 // 如果当前行是最大记录，那么表示加的就是GAP锁
                 // 如果当前想加的是GAP锁，并且当前不是insert，那么根本不用判断lock2的类型，一定会兼容，不需要等待任何其他锁
 		if ((lock_is_on_supremum || (type_mode & LOCK_GAP))
-		    && !(type_mode & LOCK_INSERT_INTENTION)) {                                                                  // 最大记录一定是GAP锁，GAP锁一定兼容
+		    && !(type_mode & LOCK_INSERT_INTENTION)) {                                                                  // 最大记录一定是GAP锁，GAP锁一定兼容 ，GAP 与 LOCK_INSERT_INTENTION不兼容
 
 			/* Gap type locks without LOCK_INSERT_INTENTION flag
 			do not need to wait for anything. This is because
@@ -849,7 +849,7 @@ lock_rec_has_to_wait(                                                           
 
                 // 和上面类似，如果当前不是insert，并且lock2是GAP锁，也不会冲突，也一定是兼容的，也不需要等待，可以直接加
 		if (!(type_mode & LOCK_INSERT_INTENTION)
-		    && lock_rec_get_gap(lock2)) {                                                                               //记录非【最大记录】，但是加【GAP锁】，GAP锁一定兼容
+		    && lock_rec_get_gap(lock2)) {                                                                               //记录非【最大记录】，但是加【GAP锁】，GAP锁一定兼容 ，GAP 与 LOCK_INSERT_INTENTION不兼容
 
 			/* Record lock (LOCK_ORDINARY or LOCK_REC_NOT_GAP
 			does not need to wait for a gap type lock */
@@ -5957,7 +5957,7 @@ the query thread to the lock wait state and inserts a waiting request
 for a gap x-lock to the lock queue.
 @return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 dberr_t
-lock_rec_insert_check_and_lock(                                                                                         //加锁
+lock_rec_insert_check_and_lock(                                                                                         //insert加锁
 /*===========================*/
 	ulint		flags,	/*!< in: if BTR_NO_LOCKING_FLAG bit is
 				set, does nothing */
@@ -5991,7 +5991,7 @@ lock_rec_insert_check_and_lock(                                                 
 
         // rec是插入点，next_rec是插入点的下一条记录
 	const rec_t*	next_rec = page_rec_get_next_const(rec);
-	ulint		heap_no = page_rec_get_heap_no(next_rec);
+	ulint		heap_no = page_rec_get_heap_no(next_rec);                                                               // insert加锁的记录是【插入点】的下一条记录
 
 	lock_mutex_enter();
 	/* Because this code is invoked for a running transaction by
@@ -6010,8 +6010,8 @@ lock_rec_insert_check_and_lock(                                                 
 		/* We optimize CPU time usage in the simplest case */
 
 		lock_mutex_exit();
-
-		if (inherit_in && !dict_index_is_clust(index)) {
+        //inherit_in=true
+		if (inherit_in && !dict_index_is_clust(index)) { //主键索引记录上有事务id不需要再设置。二级索引记录上没 trx_id 字段，所以依赖 页级 max_trx_id
 			/* Update the page max trx id field */
 			page_update_max_trx_id(block,
 					       buf_block_get_page_zip(block),
@@ -6041,7 +6041,7 @@ lock_rec_insert_check_and_lock(                                                 
 	had to wait for their insert. Both had waiting gap type lock requests
 	on the successor, which produced an unnecessary deadlock. */
         // 如果存在锁，则要判断存在的锁支不支持当前事务插入数据，type_mode就表示insert要加的锁
-	const ulint	type_mode = LOCK_X | LOCK_GAP | LOCK_INSERT_INTENTION;
+	const ulint	type_mode = LOCK_X | LOCK_GAP | LOCK_INSERT_INTENTION;                                                  //insert 加锁
 
         // 获取需要等待的锁，与当前type_mode冲突的锁就是需要等待的锁
 	const lock_t*	wait_for = lock_rec_other_has_conflicting(

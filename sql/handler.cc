@@ -3488,7 +3488,7 @@ prev_insert_id(ulonglong nr, struct system_variables *variables)
 #define AUTO_INC_DEFAULT_NB_MAX_BITS 16
 #define AUTO_INC_DEFAULT_NB_MAX ((1 << AUTO_INC_DEFAULT_NB_MAX_BITS) - 1)
 
-int handler::update_auto_increment()
+int handler::update_auto_increment()                                                                                    //获取自增id
 {
   ulonglong nr, nb_reserved_values;
   bool append= FALSE;
@@ -3601,7 +3601,7 @@ int handler::update_auto_increment()
 
       /* This call ignores all its parameters but nr, currently */
       // 获取自增值
-      get_auto_increment(variables->auto_increment_offset,
+      get_auto_increment(variables->auto_increment_offset,                                                              //获取自增id，storage\innobase\handler\ha_innodb.cc:get_auto_increment
                          variables->auto_increment_increment,
                          nb_desired_values, &nr,
                          &nb_reserved_values);

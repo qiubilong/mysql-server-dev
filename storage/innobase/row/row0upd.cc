@@ -2695,7 +2695,7 @@ row_upd_clust_rec(                                                              
 		goto success;
 	}
 
-	mtr_commit(mtr);
+	mtr_commit(mtr);//释放页面修改锁
 
 	if (buf_LRU_buf_pool_running_out()) {
 
@@ -2868,7 +2868,7 @@ row_upd_clust_step(                                                             
 
 	/* We have to restore the cursor to its position */
 
-	mtr_start(&mtr);
+	mtr_start(&mtr);//获取页面修改 物理锁 X latch
 	mtr.set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to

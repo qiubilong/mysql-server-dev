@@ -780,7 +780,7 @@ handle_new_error:
 
 		trx_kill_blocking(trx);
 
-		lock_wait_suspend_thread(thr);
+		lock_wait_suspend_thread(thr);  //等待锁
 
 		if (trx->error_state != DB_SUCCESS) {
 			que_thr_stop_for_mysql(thr);
@@ -1756,7 +1756,7 @@ error_exit:
 		/* FIXME: What's this ? */
 		thr->lock_state = QUE_THR_LOCK_ROW;
 
-		was_lock_wait = row_mysql_handle_errors(
+		was_lock_wait = row_mysql_handle_errors(                                 //锁等待
 			&err, trx, thr, &savept);
 
 		thr->lock_state = QUE_THR_LOCK_NOLOCK;
@@ -1764,7 +1764,7 @@ error_exit:
 		if (was_lock_wait) {
 			ut_ad(node->state == INS_NODE_INSERT_ENTRIES
 			      || node->state == INS_NODE_ALLOC_ROW_ID);
-			goto run_again;
+			goto run_again;                                                       //重试执行插入
 		}
 
 		trx->op_info = "";

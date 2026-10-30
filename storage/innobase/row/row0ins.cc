@@ -2536,8 +2536,8 @@ row_ins_clust_index_entry_low(                                                  
 	the function will return in both low_match and up_match of the
 	cursor sensible values */
         // 会进入到btr0pcur.ic中的btr_pcur_open_low()函数
-	// 会从索引对应的B+树的叶子节点开始找
-        btr_pcur_open(index, entry, PAGE_CUR_LE, mode, &pcur, &mtr);                                                    //【自上而下】搜索B+树，找到第一个<=【插入记录】的 插入点游标，新记录查到这个游标后面 -- PAGE_CUR_LE取左边
+	      ///插入点所在叶子页 会加 页物理锁 X latch
+        btr_pcur_open(index, entry, PAGE_CUR_LE, mode, &pcur, &mtr);                                                    //【自上而下】搜索B+树，找到第一个<=【插入记录】的 插入点游标，新记录插到这个游标后面 -- PAGE_CUR_LE取左边
 	cursor = btr_pcur_get_btr_cur(&pcur);
 	cursor->thr = thr;
 

@@ -7424,7 +7424,7 @@ ha_innobase::innobase_lock_autoinc(void)
 			dict_table_t*	ib_table = m_prebuilt->table;
 
 			/* Acquire the AUTOINC mutex. */
-			dict_table_autoinc_lock(ib_table);
+			dict_table_autoinc_lock(ib_table);              //获取自增锁
 
 			/* We need to check that another transaction isn't
 			already holding the AUTOINC lock on the table. */
@@ -7635,7 +7635,7 @@ no_commit:
 		innobase_get_auto_increment(). */
 		m_prebuilt->autoinc_error = DB_SUCCESS;
 
-		if ((error_result = update_auto_increment())) {
+		if ((error_result = update_auto_increment())) {                                                                 //获取自增id
 			/* We don't want to mask autoinc overflow errors. */
 
 			/* Handle the case where the AUTOINC sub-system
@@ -16725,13 +16725,13 @@ ha_innobase::innobase_get_autoinc(
 	ulonglong*	value)		/*!< out: autoinc value */
 {
 	*value = 0;
-        // 加自增锁
-	m_prebuilt->autoinc_error = innobase_lock_autoinc();
+
+	m_prebuilt->autoinc_error = innobase_lock_autoinc(); // 加自增锁 mutex_enter(table->autoinc_mutex);
 
 	if (m_prebuilt->autoinc_error == DB_SUCCESS) {
 
 		/* Determine the first value of the interval */
-		*value = dict_table_autoinc_read(m_prebuilt->table);
+		*value = dict_table_autoinc_read(m_prebuilt->table);    //table->autoinc
 
 		/* It should have been initialized during open. */
 		if (*value == 0) {
@@ -16778,7 +16778,7 @@ ha_innobase::innobase_peek_autoinc(void)
 Returns the value of the auto-inc counter in *first_value and ~0 on failure. */
 
 void
-ha_innobase::get_auto_increment(
+ha_innobase::get_auto_increment(                                                                                        //获取id自增
 /*============================*/
 	ulonglong	offset,			/*!< in: table autoinc offset */
 	ulonglong	increment,		/*!< in: table autoinc
@@ -16796,7 +16796,7 @@ ha_innobase::get_auto_increment(
 	/* Prepare m_prebuilt->trx in the table handle */
 	update_thd(ha_thd());
         // 获取自增值
-	error = innobase_get_autoinc(&autoinc);
+	error = innobase_get_autoinc(&autoinc);                                                                             //## 获取id自增 table.
 
 	if (error != DB_SUCCESS) {
 		*first_value = (~(ulonglong) 0);
@@ -16895,7 +16895,7 @@ ha_innobase::get_auto_increment(
 		current = *first_value > col_max_value ? autoinc : *first_value;
 
 		/* Compute the last value in the interval 对自增id进行自增*/
-		next_value = innobase_next_autoinc(
+		next_value = innobase_next_autoinc(                                                                             //### id自增
 			current, *nb_reserved_values, increment, offset,
 			col_max_value);
 
@@ -16905,7 +16905,7 @@ ha_innobase::get_auto_increment(
 			*first_value = (~(ulonglong) 0);
 		} else {
 			/* Update the table autoinc variable */
-			dict_table_autoinc_update_if_greater(
+			dict_table_autoinc_update_if_greater(                                                                       //更新自增 table->autoinc
 				m_prebuilt->table,
 				m_prebuilt->autoinc_last_value);
 		}

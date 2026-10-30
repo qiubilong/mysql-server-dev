@@ -2928,7 +2928,7 @@ For an insert, checks the locks and does the undo logging if desired.
 @return DB_SUCCESS, DB_WAIT_LOCK, DB_FAIL, or error number */
 UNIV_INLINE MY_ATTRIBUTE((warn_unused_result, nonnull(2,3,5,6)))
 dberr_t
-btr_cur_ins_lock_and_undo(                                                                                              //加锁
+btr_cur_ins_lock_and_undo(                                                                                              //insert 加锁
 /*======================*/
 	ulint		flags,	/*!< in: undo logging and locking flags: if
 				not zero, the parameters index and thr
@@ -2977,7 +2977,7 @@ btr_cur_ins_lock_and_undo(                                                      
 			*inherit = false;
 		} else {
                         // 加锁
-			err = lock_rec_insert_check_and_lock(                                                                       //加锁
+			err = lock_rec_insert_check_and_lock(                                                                       //insert加锁
 				flags, rec, btr_cur_get_block(cursor),
 				index, thr, mtr, inherit);
 		}
@@ -3169,7 +3169,7 @@ fail_err:
 		if ((max_size < rec_size
 		     || max_size < BTR_CUR_PAGE_REORGANIZE_LIMIT) //剩余空间够，但剩余空间比较小
 		    && page_get_n_recs(page) > 1
-		    && page_get_max_insert_size(page, 1) < rec_size) { //新可用空间不够，新可用空间 = 空页 - heapTop（删除 + 活跃）记录 ---> 垃圾空间不多，不想走空间重组
+		    && page_get_max_insert_size(page, 1) < rec_size) { //新可用空间不够，新可用空间 = 空页 - heapTop（删除 + 活跃）记录 ---> 垃圾空间不多，不想走页面重组
                                                                      //总的来说，页面虽然有垃圾空间，但是垃圾空间不多，那么就走【悲观插入】，新页面拆分
 			goto fail;
 		}
@@ -3221,7 +3221,7 @@ fail_err:
 			/* Check locks and write to the undo log,
 			if specified */
                         // 会进行锁检查和undo log的记录，如果发现需要阻塞等待其他事务锁的释放就会加锁，如果发现insert不需要加锁，
-			err = btr_cur_ins_lock_and_undo(flags, cursor, entry,                                                       // ## 加锁
+			err = btr_cur_ins_lock_and_undo(flags, cursor, entry,                                                       // ## 【insert】加锁
 							thr, mtr, &inherit);
 
 			if (err != DB_SUCCESS) {

@@ -171,3 +171,6 @@ CREATE TABLE `t2` (  -- t2表可以模拟主键排序再回表
   ### 锁释放 storage\innobase\lock\lock0lock.cc:lock_rec_dequeue_from_page
 
     -- // 锁标记 int type_mode  ==   xxxxxxxxxx锁类型：next-key/间隙锁/行锁   xxxxxxxx锁属性 X/S   xxxx锁类型：行锁/表锁
+
+### id自增 storage\innobase\handler\ha_innodb.cc:get_auto_increment
+   ### id初始化，table被第一次使用时，innobase_initialize_autoinc --> SELECT MAX(id) FROM TABLE --    table->autoinc
