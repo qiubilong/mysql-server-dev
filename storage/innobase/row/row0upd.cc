@@ -2868,7 +2868,7 @@ row_upd_clust_step(                                                             
 
 	/* We have to restore the cursor to its position */
 
-	mtr_start(&mtr);//获取页面修改 物理锁 X latch
+	mtr_start(&mtr);//用于获取页面修改 物理锁 X latch
 	mtr.set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to

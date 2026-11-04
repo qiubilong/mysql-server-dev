@@ -4857,7 +4857,7 @@ btr_cur_del_mark_set_clust_rec(                                                 
 
 	page_zip = buf_block_get_page_zip(block);
         // 设置delete mark
-	btr_rec_set_deleted_flag(rec, page_zip, TRUE);                                                                  //#### 删除记录，设置记录的delete mark
+	btr_rec_set_deleted_flag(rec, page_zip, TRUE);                                                                  //#### 逻辑删除记录，设置记录的delete mark
 
 	/* For intrinsic table, roll-ptr is not maintained as there is no UNDO
 	logging. Skip updating it. */
@@ -4971,7 +4971,7 @@ btr_cur_parse_del_mark_set_sec_rec(
 Sets a secondary index record delete mark to TRUE or FALSE.
 @return DB_SUCCESS, DB_LOCK_WAIT, or error number */
 dberr_t
-btr_cur_del_mark_set_sec_rec(
+btr_cur_del_mark_set_sec_rec(                                                                                           //逻辑删除二级索引
 /*=========================*/
 	ulint		flags,	/*!< in: locking flag */
 	btr_cur_t*	cursor,	/*!< in: cursor */
@@ -4986,7 +4986,7 @@ btr_cur_del_mark_set_sec_rec(
 	block = btr_cur_get_block(cursor);
 	rec = btr_cur_get_rec(cursor);
 
-	err = lock_sec_rec_modify_check_and_lock(flags,
+	err = lock_sec_rec_modify_check_and_lock(flags,                                                                     //加 X 锁
 						 btr_cur_get_block(cursor),
 						 rec, cursor->index, thr, mtr);
 	if (err != DB_SUCCESS) {
@@ -5008,7 +5008,7 @@ btr_cur_del_mark_set_sec_rec(
 	/* We do not need to reserve search latch, as the
 	delete-mark flag is being updated in place and the adaptive
 	hash index does not depend on it. */
-	btr_rec_set_deleted_flag(rec, buf_block_get_page_zip(block), val);
+	btr_rec_set_deleted_flag(rec, buf_block_get_page_zip(block), val);                                                  //#### 逻辑删除记录，设置记录的delete mark
 
 	btr_cur_del_mark_set_sec_rec_log(rec, val, mtr);
 

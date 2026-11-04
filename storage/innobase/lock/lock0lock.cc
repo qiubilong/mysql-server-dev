@@ -805,7 +805,7 @@ lock_rec_get_insert_intention(
 Checks if a lock request for a new lock has to wait for request lock2.
 @return TRUE if new lock has to wait for lock2 to be removed */
 UNIV_INLINE
-ibool                                                                                                                   // 读 vs 写不兼容, 两个【GAP锁】赦免
+ibool                                                                                                                   // 读 vs 写不兼容, 两个【GAP锁】赦免 ，【GAP锁】与【插入意向锁】冲突
 lock_rec_has_to_wait(                                                                                                   //检查是否锁冲突 --XS锁冲突下： 普通 GAP兼容， 两个锁中都包含了【行锁】才需要等，例如 临键锁-临键锁、临键锁-行锁、行锁-行锁
 /*=================*/
 	const trx_t*	trx,	/*!< in: trx of new lock */
@@ -832,12 +832,13 @@ lock_rec_has_to_wait(                                                           
 			             LOCK_MODE_MASK & type_mode),
 				     lock_get_mode(lock2))) {                                                                           //  不同事务 & 锁类型不兼容，才需判断
 
+        //T3自己加【纯GAP】 -- 如果T2对方是【插入意向锁】，说前面T1有间隙锁，则T2会继续等待, 因为此时【间隙】没有阻塞，所以T3可以获得GAP
 		/* We have somewhat complex rules when gap type record locks
 		cause waits */
                 // 如果当前行是最大记录，那么表示加的就是GAP锁
                 // 如果当前想加的是GAP锁，并且当前不是insert，那么根本不用判断lock2的类型，一定会兼容，不需要等待任何其他锁
-		if ((lock_is_on_supremum || (type_mode & LOCK_GAP))
-		    && !(type_mode & LOCK_INSERT_INTENTION)) {                                                                  // 最大记录一定是GAP锁，GAP锁一定兼容 ，GAP 与 LOCK_INSERT_INTENTION不兼容
+		if ((lock_is_on_supremum || (type_mode & LOCK_GAP))//LOCK_GAP只有可能是 {纯GAP、 INSERT_INTENTION }
+		    && !(type_mode & LOCK_INSERT_INTENTION)) {//非INSERT_INTENTION，那只能是纯GAP                                                               // 最大记录一定是GAP锁，GAP锁一定兼容 ，GAP 与 LOCK_INSERT_INTENTION不兼容
 
 			/* Gap type locks without LOCK_INSERT_INTENTION flag
 			do not need to wait for anything. This is because
@@ -846,29 +847,29 @@ lock_rec_has_to_wait(                                                           
 
 			return(FALSE);
 		}
-
-                // 和上面类似，如果当前不是insert，并且lock2是GAP锁，也不会冲突，也一定是兼容的，也不需要等待，可以直接加
+        //自己非【插入意向锁】，剩下可能是{临键锁, NOT_GAP} & 对方持有【纯GAP】
+                /* 和上面类似，如果当前不是insert，并且lock2是GAP锁，也不会冲突，也一定是兼容的，也不需要等待，可以直接加 */
 		if (!(type_mode & LOCK_INSERT_INTENTION)
-		    && lock_rec_get_gap(lock2)) {                                                                               //记录非【最大记录】，但是加【GAP锁】，GAP锁一定兼容 ，GAP 与 LOCK_INSERT_INTENTION不兼容
+		    && lock_rec_get_gap(lock2)) { // 对方【纯GAP】                                                                        //记录非【最大记录】，但是加【GAP锁】，GAP锁一定兼容 ，GAP 与 LOCK_INSERT_INTENTION不兼容
 
 			/* Record lock (LOCK_ORDINARY or LOCK_REC_NOT_GAP
 			does not need to wait for a gap type lock */
 
 			return(FALSE);
 		}
-
-                // 如果当前想加的是GAP锁，结合前面两个判断，走到这里来的时候表示当前是insert
-                // 如果当前是insert，不过lock2是LOCK_REC_NOT_GAP，此时也不冲突，insert操作能加锁成功
-		if ((type_mode & LOCK_GAP)
-		    && lock_rec_get_rec_not_gap(lock2)) {
+        // 自己加【GAP 、 插入意向锁】，非临键锁，对方【行锁】
+                /* 如果当前想加的是GAP锁，结合前面两个判断，走到这里来的时候表示当前是insert
+                // 如果当前是insert，不过lock2是LOCK_REC_NOT_GAP，此时也不冲突，insert操作能加锁成功 */
+		if ((type_mode & LOCK_GAP) //LOCK_GAP只有可能是 {纯GAP、 INSERT_INTENTION }
+		    && lock_rec_get_rec_not_gap(lock2)) {//行锁
 
 			/* Lock on gap does not need to wait for
 			a LOCK_REC_NOT_GAP type lock */
 
 			return(FALSE);
 		}
-
-                // 如果当前是insert，并且lock2也是insert，那么也不需要等待
+        // 请求方只剩三种可能：{临键锁, NOT_GAP, II}，对方【插入意向锁】
+                                          // 如果当前是insert，并且lock2也是insert，那么也不需要等待
 		if (lock_rec_get_insert_intention(lock2)) {
 
 			/* No lock request needs to wait for an insert
@@ -884,10 +885,11 @@ lock_rec_has_to_wait(                                                           
 
 			return(FALSE);
 		}
-
-                // 其他情况就需要等待了
+        //  我 ∈ {临键, NOT_GAP}，你 ∈ {临键, NOT_GAP}  → 双方都压记录本体 → 等
+        //  我 = II，你 ∈ {临键}               → 你覆盖的间隙正是我的落点 → 等（gap挡插入
+        	    /* 其他情况就需要等待了
                 // 比如当前想加的是LOCK_ORDINARY或LOCK_REC_NOT_GAP，lock2是LOCK_ORDINARY或LOCK_REC_NOT_GAP
-                // 再比如当前是insert，lock2是LOCK_GAP或LOCK_ORDINARY
+                // 再比如当前是insert，lock2是LOCK_GAP或LOCK_ORDINARY */
 		return(TRUE);
 	}
 
@@ -1902,7 +1904,7 @@ a page supremum record, a gap type lock.
 @return whether the locking succeeded */
 UNIV_INLINE
 lock_rec_req_status
-lock_rec_lock_fast(                                                                                                     //快路径加锁 -- 一个page只有一个lock_t对象
+lock_rec_lock_fast(                                                                                                     //快路径加锁 -- 一个page只有一个lock_t对象或无
 /*===============*/
 	bool			impl,	/*!< in: if TRUE, no lock is set
 					if no wait is necessary: we
@@ -1992,7 +1994,7 @@ lock, or in the case of a page supremum record, a gap type lock.
 or DB_QUE_THR_SUSPENDED */
 static
 dberr_t
-lock_rec_lock_slow(                                                                                                     //慢路径加锁 -- 锁冲突就挂起线程等待
+lock_rec_lock_slow(                                                                                                     //慢路径加锁 -- 锁冲突返回DB_LOCK_WAIT -- 挂起线程等待
 /*===============*/
 	ibool			impl,	/*!< in: if TRUE, no lock is set
 					if no wait is necessary: we
@@ -6252,7 +6254,7 @@ lock_clust_rec_modify_check_and_lock(
 
 	ut_ad(lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
 
-	err = lock_rec_lock(TRUE, LOCK_X | LOCK_REC_NOT_GAP,
+	err = lock_rec_lock(TRUE, LOCK_X | LOCK_REC_NOT_GAP,                                                            //获取 排他锁X + 行锁
 			    block, heap_no, index, thr);
 
 	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
@@ -6313,7 +6315,7 @@ lock_sec_rec_modify_check_and_lock(
 
 	ut_ad(lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
 
-	err = lock_rec_lock(TRUE, LOCK_X | LOCK_REC_NOT_GAP,
+	err = lock_rec_lock(TRUE, LOCK_X | LOCK_REC_NOT_GAP,                                                            //二级索引加 X【行锁】
 			    block, heap_no, index, thr);
 
 	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
