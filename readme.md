@@ -174,3 +174,49 @@ CREATE TABLE `t2` (  -- t2表可以模拟主键排序再回表
 
 ### id自增 storage\innobase\handler\ha_innodb.cc:get_auto_increment
    ### id初始化，table被第一次使用时，innobase_initialize_autoinc --> SELECT MAX(id) FROM TABLE --    table->autoinc
+
+
+## 元数据锁
+  #### instant 算法 --  立即更新，零复制，只改字典，尾部加列
+  #### inplace 算法 -- 就地更新，innodb存储引擎提供 ，中间不阻塞读写操作-- 扫描全表写入临时有序文件 -- 顺序写入影子表B+树 -- 加【元数据锁】排他锁 -- 【等待】会阻塞后面select/update/insert操作
+  #### copy 算法 -- mysql层实现，调用innodb接口查一次，插入一次 ，复制过程不阻塞select操作，阻塞insert、update、insert操作
+````sql
+CREATE TABLE `user_info` (
+     `id` int NOT NULL,
+     `name` varchar(255) DEFAULT NULL,
+     `phone` varchar(45) NOT NULL,
+     PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+---------------------------------------------------------------------------
+
+CREATE DEFINER = `root` @`%` PROCEDURE `InsertUserInfo` ( IN num_records INT ) 
+BEGIN
+	DECLARE i INT DEFAULT 1;
+	DECLARE phone_prefix CHAR ( 3 ) DEFAULT '123';
+	DECLARE phone_suffix CHAR ( 8 ) DEFAULT '';
+	DECLARE name VARCHAR ( 255 );
+	WHILE i <= num_records DO 
+	  SET phone_suffix = LPAD( i, 8, '0' );
+	  SET name = CONCAT( 'User_', i );
+	  INSERT INTO user_info ( id, name, phone )
+	  VALUES(i,name,CONCAT( phone_prefix, phone_suffix ));
+	  SET i = i + 1;
+	END WHILE;
+END
+
+call InsertUserInfo(2000000);
+
+-----
+begin;
+select * from user_info;
+-----
+alter table user_info add column phone varchar(45)
+alter table user_info drop column phone, ALGORITHM=COPY, LOCK=SHARED;
+alter table user_info drop column phone, ALGORITHM=INPLACE, LOCK=NONE;
+
+begin;
+update user_info set name = '111' where id = 1;
+insert into user_info values(30000111111, 'zhangfei','123');
+delete from user_info where id = 1;
+
+````

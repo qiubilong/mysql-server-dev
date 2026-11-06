@@ -6319,7 +6319,7 @@ by ALTER TABLE and holding data used during in-place alter.
 */
 
 bool
-ha_innobase::inplace_alter_table(
+ha_innobase::inplace_alter_table(                                                                                       //inplace 更新表结构
 /*=============================*/
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info)
@@ -6438,7 +6438,7 @@ ok_exit:
 
 	DBUG_EXECUTE_IF("innodb_OOM_inplace_alter",
 			error = DB_OUT_OF_MEMORY; goto oom;);
-	error = row_merge_build_indexes(
+	error = row_merge_build_indexes(                                                                                     //扫描全表 -- 临时有序文件 -- 顺序写入【影子表】B+树
 		m_prebuilt->trx,
 		m_prebuilt->table, ctx->new_table,
 		ctx->online,

@@ -1647,7 +1647,7 @@ stage->inc() will be called for each page read.
 @return DB_SUCCESS or error */
 static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
-row_merge_read_clustered_index(
+row_merge_read_clustered_index(                                                                                          //扫描全表数据 -- buffer排序 -- 写入有序临时文件
 	trx_t*			trx,
 	struct TABLE*		table,
 	const dict_table_t*	old_table,
@@ -1849,7 +1849,7 @@ row_merge_read_clustered_index(
 
 	/* Scan the clustered index. */
         // 扫描聚集索引叶子节点所有数据
-	for (;;) {
+	for (;;) {                                                                                                          //扫描主键索引所有数据
 		const rec_t*	rec;
 		ulint*		offsets;
 		const dtuple_t*	row;
@@ -3200,7 +3200,7 @@ and then stage->inc() will be called for each record that is processed.
 @return DB_SUCCESS or error number */
 static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
-row_merge_insert_index_tuples(
+row_merge_insert_index_tuples(                                                                                          //## 顺序写入【影子表】B+树
 	trx_id_t		trx_id,
 	dict_index_t*		index,
 	const dict_table_t*	old_table,
@@ -3347,8 +3347,8 @@ row_merge_insert_index_tuples(
 		}
 
 		ut_ad(dtuple_validate(dtuple));
-                // 这是核心，把索引记录插入到B+树中
-		error = btr_bulk->insert(dtuple);
+
+		error = btr_bulk->insert(dtuple);                                                                               // 这是核心，把索引记录插入到B+树中
 
 		if (error != DB_SUCCESS) {
 			goto err_exit;
@@ -4332,7 +4332,7 @@ this function and it will be passed to other functions for further accounting.
 				value, see innobase_get_computed_value().
 @return DB_SUCCESS or error code */
 dberr_t
-row_merge_build_indexes(
+row_merge_build_indexes(                                                                                                //全量复制 -- 文件排序 -- 批量插入新表
 	trx_t*			trx,
 	dict_table_t*		old_table,
 	dict_table_t*		new_table,
@@ -4459,7 +4459,7 @@ row_merge_build_indexes(
 
 	/* Read clustered index of the table and create files for
 	secondary index entries for merge sort */
-	error = row_merge_read_clustered_index(
+	error = row_merge_read_clustered_index(                                                                             //### 扫描全表，写入有序临时文件
 		trx, table, old_table, new_table, online, indexes,
 		fts_sort_idx, psort_info, merge_files, key_numbers,
 		n_indexes, add_cols, add_v, col_map, add_autoinc,
@@ -4560,8 +4560,8 @@ wait_again:
 			row_merge_dup_t	dup = {
 				sort_idx, table, col_map, 0};
 
-                        // 归并排序
-			error = row_merge_sort(
+
+			error = row_merge_sort( // 归并排序
 				trx, &dup, &merge_files[i],
 				block, &tmpfd, stage);
 
@@ -4570,7 +4570,7 @@ wait_again:
 						 flush_observer);
 				btr_bulk.init();
 
-				error = row_merge_insert_index_tuples(
+				error = row_merge_insert_index_tuples(                                                                  //## 遍历索引，## 顺序写入【影子表】B+树
 					trx->id, sort_idx, old_table,
 					merge_files[i].fd, block, NULL,
 					&btr_bulk, stage);
